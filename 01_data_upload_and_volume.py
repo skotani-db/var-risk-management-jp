@@ -89,7 +89,7 @@ display(portfolio_df)
 # MAGIC **幾何ブラウン運動**（GBM）ベースのリアルなダミーデータを生成します。
 # MAGIC
 # MAGIC 実運用では、以下のいずれかの方法でデータを取り込みます：
-# MAGIC - Bloomberg/Refinitivなどのデータベンダーからのファイル → Volume にアップロード
+# MAGIC - 上流のブッキングシステムやマーケットデータ基盤からのファイル → Volume にアップロード
 # MAGIC - API連携（Lakeflow Connect）
 # MAGIC - 社内データウェアハウスからの連携
 
