@@ -49,18 +49,24 @@
 # MAGIC | エラーハンドリング | 自前実装 | フレームワークが管理 |
 # MAGIC
 # MAGIC ### Expectations（データ品質ルール）
+# MAGIC 最新の Declarative Pipelines API（`databricks.declarative_pipelines`）では以下のように記述します：
 # MAGIC ```python
-# MAGIC @dlt.expect("valid_price", "close > 0")           # 警告のみ（行は通過）
-# MAGIC @dlt.expect_or_drop("valid_date", "date IS NOT NULL")  # 違反行を除外
-# MAGIC @dlt.expect_or_fail("valid_ticker", "ticker IS NOT NULL")  # 違反でパイプライン停止
+# MAGIC import databricks.declarative_pipelines as dp
+# MAGIC
+# MAGIC @dp.table
+# MAGIC @dp.expect("valid_price", "close > 0")                  # 警告のみ（行は通過）
+# MAGIC @dp.expect_or_drop("valid_date", "date IS NOT NULL")     # 違反行を除外
+# MAGIC @dp.expect_or_fail("valid_ticker", "ticker IS NOT NULL") # 違反でパイプライン停止
+# MAGIC def silver_stocks():
+# MAGIC     return spark.readStream.table("bronze_stocks")
 # MAGIC ```
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 2. DLT パイプライン定義の紹介
+# MAGIC ## 2. Declarative Pipelines 定義の紹介
 # MAGIC
-# MAGIC `lakeflow/dlt_pipeline.py` に完全な DLT パイプライン定義があります。
+# MAGIC `lakeflow/dlt_pipeline.py` に完全なパイプライン定義があります。
 # MAGIC このパイプラインは以下のテーブルを生成します：
 # MAGIC
 # MAGIC ```
