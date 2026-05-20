@@ -315,15 +315,15 @@ display(spark.read.table(config['database']['tables']['indicators']))
 # MAGIC %md
 # MAGIC ## やってみよう
 # MAGIC
-# MAGIC 以下の演習で理解を深めましょう：
+# MAGIC 以下の演習に挑戦してみましょう。
+# MAGIC **わからないことがあれば、ノートブック右側の Genie Code（AI アシスタント）に質問しながら進めてください。**
+# MAGIC
+# MAGIC > Genie Code の使い方: ノートブック右上の吹き出しアイコンをクリック → チャット欄に質問を入力
+# MAGIC > 例: 「market_data テーブルの銘柄ごとの行数を数える SQL を書いて」
 # MAGIC
 # MAGIC 1. **Volume を UI から確認**: 左メニュー「カタログ」→ Volume を開き、保存されたCSVファイルを確認してください
 # MAGIC 2. **テーブルのプレビュー**: カタログ UI で `market_data` テーブルをクリックし、「サンプルデータ」タブでデータを確認してください
-# MAGIC 3. **SQL で確認**: 以下のセルのコメントを外して実行し、銘柄ごとの行数を確認してください
-# MAGIC
-# MAGIC ```sql
-# MAGIC -- SELECT ticker, COUNT(*) as cnt FROM market_data GROUP BY ticker ORDER BY cnt DESC
-# MAGIC ```
+# MAGIC 3. **SQL で確認**: 下の空セルで Genie Code に「銘柄ごとの行数を数えるクエリを書いて」と聞いて、生成された SQL を実行してみましょう
 
 # COMMAND ----------
 
