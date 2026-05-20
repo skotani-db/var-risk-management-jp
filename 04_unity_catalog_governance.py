@@ -181,14 +181,87 @@
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC -- テーブルの変更履歴を確認
-# MAGIC DESCRIBE HISTORY market_data LIMIT 10
+# MAGIC -- 変更前のバージョンを確認
+# MAGIC DESCRIBE HISTORY market_data LIMIT 5
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### データ更新を行い、バージョンが進むことを確認
+# MAGIC
+# MAGIC 実際にデータを更新して、タイムトラベルでの過去バージョンアクセスを体験します。
 
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC -- 過去バージョンのデータにアクセス（例: バージョン0）
-# MAGIC -- SELECT * FROM market_data VERSION AS OF 0 LIMIT 5
+# MAGIC -- Step 1: 更新前の行数を確認
+# MAGIC SELECT '更新前' AS status, COUNT(*) AS row_count FROM market_data
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC -- Step 2: テスト用のダミー行を INSERT（意図的な変更）
+# MAGIC INSERT INTO market_data (ticker, date, open, high, low, close, volume)
+# MAGIC VALUES ('TEST', '2099-01-01', 100.0, 105.0, 95.0, 102.0, 999999.0)
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC -- Step 3: さらに UPDATE を実行（価格修正シナリオ）
+# MAGIC UPDATE market_data SET close = 999.99 WHERE ticker = 'TEST'
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC -- Step 4: 変更後のバージョン履歴を確認（3つ以上のバージョンが存在するはず）
+# MAGIC DESCRIBE HISTORY market_data LIMIT 5
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC -- Step 5: 最新バージョンではテスト行が更新済み
+# MAGIC SELECT ticker, date, close FROM market_data WHERE ticker = 'TEST'
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC -- Step 6: タイムトラベルで INSERT 直後のバージョン（UPDATE 前）にアクセス
+# MAGIC -- close = 102.0（UPDATE 前の値）であることを確認
+# MAGIC SELECT ticker, date, close
+# MAGIC FROM market_data VERSION AS OF 1
+# MAGIC WHERE ticker = 'TEST'
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC -- Step 7: 最初のバージョン（INSERT 前）にはテスト行が存在しないことを確認
+# MAGIC SELECT COUNT(*) AS test_rows
+# MAGIC FROM market_data VERSION AS OF 0
+# MAGIC WHERE ticker = 'TEST'
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC -- クリーンアップ: テスト行を削除
+# MAGIC DELETE FROM market_data WHERE ticker = 'TEST'
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### 結果の確認
+# MAGIC
+# MAGIC | バージョン | テスト行の状態 | close の値 |
+# MAGIC |---|---|---|
+# MAGIC | 0（初期ロード） | 存在しない | - |
+# MAGIC | 1（INSERT後） | 存在する | 102.0 |
+# MAGIC | 2（UPDATE後） | 存在する | 999.99 |
+# MAGIC | 3（DELETE後=現在） | 存在しない | - |
+# MAGIC
+# MAGIC このように、Delta Lake はすべての変更履歴を保持しており、
+# MAGIC 任意の時点のデータに `VERSION AS OF` で正確にアクセスできます。
+# MAGIC
+# MAGIC **リスク管理での活用**: 「先週金曜日時点のポートフォリオデータで VaR を再計算したい」
+# MAGIC といった監査・バックテスト要件に即座に対応できます。
 
 # COMMAND ----------
 

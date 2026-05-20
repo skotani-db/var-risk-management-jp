@@ -185,7 +185,9 @@ import pandas as pd
 stocks_pd = stocks_df.toPandas().sort_values('date')
 market_pd_asof = market_df.toPandas().sort_values('market_date')
 
-# 各銘柄ごとに merge_asof
+# 各銘柄ごとに merge_asof で時点結合
+# NOTE: ここでは可読性のためにループで処理していますが、本番環境では
+# pandas_udf (applyInPandas) を使えば銘柄単位で Spark に分散処理させることも可能です
 result_dfs = []
 for ticker in stocks_pd['ticker'].unique():
     ticker_df = stocks_pd[stocks_pd['ticker'] == ticker].copy()

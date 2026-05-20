@@ -387,6 +387,52 @@ plt.show()
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC ## 8. Unity Catalog でモデルのメタデータを確認
+# MAGIC
+# MAGIC 登録したモデルは Unity Catalog 上で管理され、以下のメタデータが確認できます：
+# MAGIC
+# MAGIC - **バージョン履歴**: いつ、誰が、どのRunから登録したか
+# MAGIC - **エイリアス**: どのバージョンが champion / challenger か
+# MAGIC - **リネージ**: モデルがどのテーブルのデータを使って訓練されたか
+# MAGIC - **シグネチャ**: モデルの入出力スキーマ
+# MAGIC
+# MAGIC ### UI操作ポイント
+# MAGIC > 左メニュー「カタログ」→ カタログ名 → スキーマ名 → 「モデル」タブ
+# MAGIC > → モデル名をクリック → バージョン一覧・エイリアス・リネージが確認できます
+
+# COMMAND ----------
+
+# Unity Catalog 上のモデル情報を確認
+model_versions = client.search_model_versions(f"name='{uc_model_name}'")
+for mv in model_versions:
+    print(f"Version {mv.version}: status={mv.status}, aliases={mv.aliases}")
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC -- SQL からもモデル情報を確認可能
+# MAGIC -- リネージ: このモデルが参照しているテーブル・元データを追跡
+# MAGIC DESCRIBE MODEL value_at_risk
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### リネージの活用（モデルリスク管理 SR 11-7）
+# MAGIC
+# MAGIC Unity Catalog の **リネージ機能** により、以下が自動追跡されます：
+# MAGIC
+# MAGIC - **上流**: モデル訓練に使用したテーブル（`market_data`, `market_volatility`）
+# MAGIC - **下流**: モデルを使用しているノートブック・ジョブ
+# MAGIC
+# MAGIC これにより規制当局の検査時に「このモデルはどのデータで訓練されたか」
+# MAGIC 「このモデルを使っている下流プロセスは何か」を即座に回答できます。
+# MAGIC
+# MAGIC > カタログ UI のモデル詳細画面で「リネージ」タブをクリックすると、
+# MAGIC > データ → モデル → 推論テーブル の依存関係がグラフで可視化されます。
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ## まとめ
 # MAGIC
 # MAGIC このノートブックでは以下を学びました：
@@ -394,7 +440,7 @@ plt.show()
 # MAGIC - **pyfunc モデル**: カスタムリスクモデルを MLflow モデルとしてパッケージ化
 # MAGIC - **Unity Catalog Model Registry**: モデルのバージョン管理とエイリアス（champion）
 # MAGIC - **シグネチャ**: モデルの入出力スキーマの強制
-# MAGIC - **Spark UDF**: 登録済みモデルを分散推論に利用
+# MAGIC - **リネージ**: モデルの訓練データ・下流プロセスの自動追跡
 # MAGIC
 # MAGIC 次のノートブック `07_monte_carlo_simulation` では、
 # MAGIC このモデルを使って **モンテカルロシミュレーション** を大規模に実行します。
