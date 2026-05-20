@@ -43,7 +43,7 @@ config = {
   'monte-carlo': {
     'executors': 20,
     'volatility': 90,
-    'runs': 2000,
+    'runs': 10000,
   },
 }
 
