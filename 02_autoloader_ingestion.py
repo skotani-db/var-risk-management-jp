@@ -13,7 +13,7 @@
 # MAGIC - **チェックポイント**: どのファイルまで処理したかを記録し、重複処理を防止
 # MAGIC
 # MAGIC ## リスク管理でのメリット
-# MAGIC - 上流のブッキングシステムやマーケットデータ基盤から配信されるファイルを **自動的に取り込み**
+# MAGIC - 上流のブッキングシステムやマーケットデータ基盤から高頻度で配信されるファイルを **自動的に取り込み**
 # MAGIC - 取り込み済みファイルの追跡（チェックポイント）により **データの欠落・重複を防止**
 # MAGIC - スキーマ進化機能で、上流システムの改修でカラムが追加されても **パイプラインが壊れない**
 # MAGIC
@@ -102,7 +102,7 @@ stocks_stream = (
 # MAGIC `trigger(availableNow=True)` は、現在利用可能な全ファイルを処理して停止します。
 # MAGIC
 # MAGIC ### 本番運用では
-# MAGIC - `trigger(availableNow=True)` → ジョブとしてスケジュール実行（日次バッチ）
+# MAGIC - `trigger(availableNow=True)` → ジョブとしてスケジュール実行（時間単位・日次バッチ等）
 # MAGIC - `trigger(processingTime="1 minute")` → 継続的なストリーミング処理
 # MAGIC
 # MAGIC ### UI操作ポイント
@@ -187,13 +187,13 @@ display(spark.read.table(indicators_table).limit(10))
 # MAGIC
 # MAGIC ### リスク部門での運用例
 # MAGIC ```
-# MAGIC [毎朝 7:00] 上流のブッキングシステムが新しい市場データCSVを Volume に配置
+# MAGIC [日中随時]  上流のブッキングシステムが約定・ポジションデータを Volume に配置
 # MAGIC      ↓
-# MAGIC [毎朝 7:30] スケジュールジョブが Auto Loader ノートブックを実行
+# MAGIC [1時間毎]   スケジュールジョブが Auto Loader を実行 → 新ファイルのみ取り込み
 # MAGIC      ↓
-# MAGIC [自動] 新ファイルのみを検出 → Delta テーブルに追記
+# MAGIC [EOD 18:00] マーケットクローズ後に最終データ確定
 # MAGIC      ↓
-# MAGIC [毎朝 8:00] 後続の VaR 計算パイプラインが起動
+# MAGIC [夜間 20:00] VaR 計算パイプラインが確定データで起動
 # MAGIC ```
 
 # COMMAND ----------
