@@ -48,9 +48,12 @@ def safe_sql(query, description=""):
         display(result)
     except Exception as e:
         error_msg = str(e)
-        if "TABLE_OR_VIEW_NOT_FOUND" in error_msg or "SCHEMA_NOT_FOUND" in error_msg:
-            print(f"[SKIP] {description}: このワークスペースでは対象の System Table が利用できません")
-            print(f"  → 管理者に system tables の有効化を依頼してください")
+        if any(k in error_msg for k in ["TABLE_OR_VIEW_NOT_FOUND", "SCHEMA_NOT_FOUND", "INSUFFICIENT_PERMISSIONS"]):
+            print(f"[SKIP] {description}")
+            if "INSUFFICIENT_PERMISSIONS" in error_msg:
+                print(f"  → 権限不足です。管理者に system tables へのアクセス権限を依頼してください")
+            else:
+                print(f"  → このワークスペースでは対象の System Table が利用できません")
         else:
             raise
 

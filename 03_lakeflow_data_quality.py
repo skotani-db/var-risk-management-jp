@@ -83,11 +83,33 @@
 # MAGIC validated_stocks (Gold)
 # MAGIC ```
 # MAGIC
-# MAGIC ### UI操作ポイント
-# MAGIC > DLT パイプラインの作成手順:
+# MAGIC ### UI操作ポイント: パイプラインの作成
 # MAGIC > 1. 左メニュー「ジョブ」→「Delta Live Tables」→「パイプラインを作成」
 # MAGIC > 2. ソースコードに `lakeflow/dlt_pipeline.py` を指定
-# MAGIC > 3. ターゲットスキーマを設定 → 「開始」
+# MAGIC > 3. ターゲットカタログ・スキーマを設定 → Serverless にチェック → 「開始」
+# MAGIC
+# MAGIC ### UI操作ポイント: パイプライン実行結果の見方
+# MAGIC > パイプライン実行後、以下の画面で結果を確認できます：
+# MAGIC >
+# MAGIC > **DAG（データフロー図）**:
+# MAGIC > - Bronze → Silver → Gold のテーブル間の依存関係がグラフで表示されます
+# MAGIC > - 各テーブルノードをクリックすると詳細（行数、スキーマ）が確認できます
+# MAGIC > - テーブルノードの色で状態がわかります（緑=成功、赤=失敗）
+# MAGIC >
+# MAGIC > **データ品質メトリクス**:
+# MAGIC > - Silver テーブルのノードをクリック → 「Data quality」タブ
+# MAGIC > - 各 Expectation の **合格率** がパーセンテージで表示されます
+# MAGIC > - 例: `positive_close: 100% passed` → close > 0 のルールに全行合格
+# MAGIC > - `expect_or_drop` のルールでは、違反行が何行ドロップされたかも表示
+# MAGIC >
+# MAGIC > **イベントログ**:
+# MAGIC > - 画面下部にパイプラインの実行ログが時系列で表示されます
+# MAGIC > - エラー・警告がある場合は赤/黄色でハイライトされます
+# MAGIC > - フィルタで ERROR のみに絞り込むこともできます
+# MAGIC >
+# MAGIC > **更新履歴**:
+# MAGIC > - 「更新履歴」タブで過去の実行履歴（成功/失敗、実行時間）を一覧確認
+# MAGIC > - 各更新をクリックするとその時点の DAG とメトリクスが表示されます
 
 # COMMAND ----------
 
