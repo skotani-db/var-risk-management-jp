@@ -26,6 +26,33 @@
 # MAGIC > - `system.compute` → クラスター利用状況
 # MAGIC > - `system.lakeflow` → DLTパイプライン実行履歴
 # MAGIC > - `system.workflow` → ジョブ実行履歴
+# MAGIC
+# MAGIC ## 注意事項
+# MAGIC > System Tables は **ワークスペースの権限設定やリージョン** によって
+# MAGIC > 利用できるテーブルが異なります。このノートブックでは、
+# MAGIC > テーブルが存在しない場合はスキップしてエラーにならないようにしています。
+
+# COMMAND ----------
+
+# MAGIC %run ./config/configure_notebook
+
+# COMMAND ----------
+
+# System Tables のクエリを安全に実行するヘルパー関数
+def safe_sql(query, description=""):
+    """System Tables が存在しない場合のみスキップ。それ以外のエラーは raise する"""
+    try:
+        result = spark.sql(query)
+        if description:
+            print(f"[OK] {description}")
+        display(result)
+    except Exception as e:
+        error_msg = str(e)
+        if "TABLE_OR_VIEW_NOT_FOUND" in error_msg or "SCHEMA_NOT_FOUND" in error_msg:
+            print(f"[SKIP] {description}: このワークスペースでは対象の System Table が利用できません")
+            print(f"  → 管理者に system tables の有効化を依頼してください")
+        else:
+            raise
 
 # COMMAND ----------
 
@@ -40,63 +67,22 @@
 # MAGIC |---|---|---|
 # MAGIC | `system.billing.usage` | DBU消費量・課金 | VaR計算のコスト追跡 |
 # MAGIC | `system.compute.clusters` | クラスター情報 | 計算リソースの効率性 |
-# MAGIC | `system.workflow.job_run_timeline` | ジョブ実行履歴 | パイプラインの成功/失敗監視 |
-# MAGIC | `system.workflow.jobs` | ジョブ定義 | パイプラインの構成管理 |
 # MAGIC | `system.lakeflow.pipeline_event_log` | DLTイベントログ | データ品質パイプラインの監視 |
 # MAGIC | `system.access.audit` | 監査ログ | データアクセスの追跡 |
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 2. ジョブ実行履歴の確認
+# MAGIC ## 2. 利用可能な System Tables の確認
 # MAGIC
-# MAGIC VaR計算パイプラインをジョブとしてスケジュール実行している場合、
-# MAGIC `system.workflow.job_run_timeline` で実行履歴を確認できます。
-# MAGIC
-# MAGIC ### SLA管理の観点
-# MAGIC リスク計量部門では、以下のようなSLAが求められます：
-# MAGIC - **日次VaR計算**: 毎朝8:00までに完了
-# MAGIC - **モンテカルロシミュレーション**: 2時間以内に完了
-# MAGIC - **データ取り込み**: 市場データ配信から30分以内
+# MAGIC まず、このワークスペースでどの System Tables が利用可能か確認します。
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- ジョブ実行履歴（直近30日）
-# MAGIC -- 注意: system テーブルはワークスペースの権限設定により閲覧できない場合があります
-# MAGIC SELECT
-# MAGIC   j.name AS job_name,
-# MAGIC   r.run_id,
-# MAGIC   r.result_state,
-# MAGIC   r.start_time,
-# MAGIC   r.end_time,
-# MAGIC   TIMESTAMPDIFF(MINUTE, r.start_time, r.end_time) AS duration_minutes
-# MAGIC FROM system.workflow.job_run_timeline r
-# MAGIC JOIN system.workflow.jobs j ON r.job_id = j.job_id
-# MAGIC WHERE r.start_time >= DATEADD(DAY, -30, CURRENT_TIMESTAMP())
-# MAGIC   AND LOWER(j.name) LIKE '%var%' OR LOWER(j.name) LIKE '%risk%'
-# MAGIC ORDER BY r.start_time DESC
-# MAGIC LIMIT 50
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC -- ジョブの成功/失敗率（リスク計算パイプラインの信頼性）
-# MAGIC SELECT
-# MAGIC   j.name AS job_name,
-# MAGIC   COUNT(*) AS total_runs,
-# MAGIC   SUM(CASE WHEN r.result_state = 'SUCCESS' THEN 1 ELSE 0 END) AS success_count,
-# MAGIC   SUM(CASE WHEN r.result_state != 'SUCCESS' THEN 1 ELSE 0 END) AS failure_count,
-# MAGIC   ROUND(
-# MAGIC     SUM(CASE WHEN r.result_state = 'SUCCESS' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1
-# MAGIC   ) AS success_rate_pct,
-# MAGIC   ROUND(AVG(TIMESTAMPDIFF(MINUTE, r.start_time, r.end_time)), 1) AS avg_duration_minutes
-# MAGIC FROM system.workflow.job_run_timeline r
-# MAGIC JOIN system.workflow.jobs j ON r.job_id = j.job_id
-# MAGIC WHERE r.start_time >= DATEADD(DAY, -90, CURRENT_TIMESTAMP())
-# MAGIC GROUP BY j.name
-# MAGIC ORDER BY total_runs DESC
-# MAGIC LIMIT 20
+safe_sql(
+    "SHOW SCHEMAS IN system",
+    "system カタログ内のスキーマ一覧"
+)
 
 # COMMAND ----------
 
@@ -113,54 +99,55 @@
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- 日次DBU消費量（直近30日）
-# MAGIC SELECT
-# MAGIC   usage_date,
-# MAGIC   sku_name,
-# MAGIC   ROUND(SUM(usage_quantity), 2) AS total_dbus
-# MAGIC FROM system.billing.usage
-# MAGIC WHERE usage_date >= DATEADD(DAY, -30, CURRENT_DATE())
-# MAGIC GROUP BY usage_date, sku_name
-# MAGIC ORDER BY usage_date DESC, total_dbus DESC
+safe_sql("""
+    SELECT
+      usage_date,
+      sku_name,
+      ROUND(SUM(usage_quantity), 2) AS total_dbus
+    FROM system.billing.usage
+    WHERE usage_date >= DATEADD(DAY, -30, CURRENT_DATE())
+    GROUP BY usage_date, sku_name
+    ORDER BY usage_date DESC, total_dbus DESC
+    LIMIT 30
+""", "日次DBU消費量（直近30日）")
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- SKU別の月次コスト推移
-# MAGIC SELECT
-# MAGIC   DATE_TRUNC('month', usage_date) AS month,
-# MAGIC   sku_name,
-# MAGIC   ROUND(SUM(usage_quantity), 2) AS total_dbus
-# MAGIC FROM system.billing.usage
-# MAGIC WHERE usage_date >= DATEADD(MONTH, -6, CURRENT_DATE())
-# MAGIC GROUP BY DATE_TRUNC('month', usage_date), sku_name
-# MAGIC ORDER BY month, total_dbus DESC
+safe_sql("""
+    SELECT
+      DATE_TRUNC('month', usage_date) AS month,
+      sku_name,
+      ROUND(SUM(usage_quantity), 2) AS total_dbus
+    FROM system.billing.usage
+    WHERE usage_date >= DATEADD(MONTH, -6, CURRENT_DATE())
+    GROUP BY DATE_TRUNC('month', usage_date), sku_name
+    ORDER BY month, total_dbus DESC
+""", "SKU別の月次コスト推移")
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 4. クラスター利用効率
+# MAGIC ## 4. クラスター利用状況
 # MAGIC
 # MAGIC Serverless 環境ではクラスター管理は不要ですが、
 # MAGIC 既存のクラスターを使用している場合は利用効率を確認できます。
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- クラスター利用状況（Serverless以外の環境向け）
-# MAGIC SELECT
-# MAGIC   cluster_name,
-# MAGIC   cluster_id,
-# MAGIC   driver_node_type,
-# MAGIC   worker_node_type,
-# MAGIC   autoscale_min_workers,
-# MAGIC   autoscale_max_workers,
-# MAGIC   create_time
-# MAGIC FROM system.compute.clusters
-# MAGIC WHERE delete_time IS NULL  -- アクティブなクラスターのみ
-# MAGIC ORDER BY create_time DESC
-# MAGIC LIMIT 20
+safe_sql("""
+    SELECT
+      cluster_name,
+      cluster_id,
+      driver_node_type,
+      worker_node_type,
+      autoscale_min_workers,
+      autoscale_max_workers,
+      create_time
+    FROM system.compute.clusters
+    WHERE delete_time IS NULL
+    ORDER BY create_time DESC
+    LIMIT 20
+""", "アクティブなクラスター一覧")
 
 # COMMAND ----------
 
@@ -171,18 +158,18 @@
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- DLTパイプラインのイベントログ（直近7日）
-# MAGIC SELECT
-# MAGIC   timestamp,
-# MAGIC   event_type,
-# MAGIC   message,
-# MAGIC   level
-# MAGIC FROM system.lakeflow.pipeline_event_log
-# MAGIC WHERE timestamp >= DATEADD(DAY, -7, CURRENT_TIMESTAMP())
-# MAGIC   AND level IN ('INFO', 'WARN', 'ERROR')
-# MAGIC ORDER BY timestamp DESC
-# MAGIC LIMIT 50
+safe_sql("""
+    SELECT
+      timestamp,
+      event_type,
+      message,
+      level
+    FROM system.lakeflow.pipeline_event_log
+    WHERE timestamp >= DATEADD(DAY, -7, CURRENT_TIMESTAMP())
+      AND level IN ('INFO', 'WARN', 'ERROR')
+    ORDER BY timestamp DESC
+    LIMIT 50
+""", "DLTパイプラインイベント（直近7日）")
 
 # COMMAND ----------
 
@@ -194,26 +181,15 @@
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- KPI: 直近のパイプライン健全性
-# MAGIC -- （この結果を Dashboard の KPI ウィジェットに表示）
-# MAGIC SELECT
-# MAGIC   'ジョブ成功率' AS metric,
-# MAGIC   CONCAT(
-# MAGIC     ROUND(
-# MAGIC       SUM(CASE WHEN r.result_state = 'SUCCESS' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1
-# MAGIC     ), '%'
-# MAGIC   ) AS value
-# MAGIC FROM system.workflow.job_run_timeline r
-# MAGIC WHERE r.start_time >= DATEADD(DAY, -7, CURRENT_TIMESTAMP())
-# MAGIC
-# MAGIC UNION ALL
-# MAGIC
-# MAGIC SELECT
-# MAGIC   '直近7日間の総DBU' AS metric,
-# MAGIC   CAST(ROUND(SUM(usage_quantity), 0) AS STRING) AS value
-# MAGIC FROM system.billing.usage
-# MAGIC WHERE usage_date >= DATEADD(DAY, -7, CURRENT_DATE())
+safe_sql("""
+    SELECT
+      DATE_TRUNC('week', usage_date) AS week,
+      ROUND(SUM(usage_quantity), 2) AS total_dbus
+    FROM system.billing.usage
+    WHERE usage_date >= DATEADD(MONTH, -3, CURRENT_DATE())
+    GROUP BY DATE_TRUNC('week', usage_date)
+    ORDER BY week
+""", "週次DBU消費トレンド（運用ダッシュボード用）")
 
 # COMMAND ----------
 
@@ -234,7 +210,7 @@
 # MAGIC > **アラートの設定手順**:
 # MAGIC > 1. 左メニュー「SQL」→「アラート」→「アラートを作成」
 # MAGIC > 2. SQLクエリを指定（上記のクエリを改変）
-# MAGIC > 3. 閾値条件を設定（例: result > 120 分）
+# MAGIC > 3. 閾値条件を設定（例: total_dbus > 1000）
 # MAGIC > 4. 通知先を設定（Slack Webhook, メール等）
 # MAGIC > 5. スケジュールを設定（例: 15分ごとにチェック）
 
@@ -245,8 +221,8 @@
 # MAGIC
 # MAGIC このノートブックでは以下を学びました：
 # MAGIC - **System Tables** で Databricks の利用状況を自動的に記録・分析
-# MAGIC - **ジョブ実行履歴** でVaR計算パイプラインの成功率・実行時間を監視
 # MAGIC - **DBU消費量** でコスト追跡とチーム別配賦
+# MAGIC - **クラスター監視** でリソース効率の確認
 # MAGIC - **DLTパイプラインログ** でデータ品質パイプラインの健全性確認
 # MAGIC - **アラート設定** で障害の早期検知
 # MAGIC
@@ -262,10 +238,10 @@
 # MAGIC | 01: Data Upload | Unity Catalog Volume |
 # MAGIC | 02: Auto Loader | cloudFiles、増分処理 |
 # MAGIC | 03: Data Quality | Lakeflow SDP、Expectations |
-# MAGIC | 04: Governance | リネージ、権限、タグ |
-# MAGIC | 05: Features | Window関数、ASOF JOIN |
-# MAGIC | 06: MLflow | Experiment、Model Registry |
+# MAGIC | 04: Governance | リネージ、権限、タグ、タイムトラベル |
+# MAGIC | 05: Features | Window関数、時点結合 |
+# MAGIC | 06: MLflow | Experiment、Model Registry、リネージ |
 # MAGIC | 07: Monte Carlo | Spark分散処理、Liquid Clustering |
 # MAGIC | 08: Compliance | Spark ML、バーゼルバックテスト |
-# MAGIC | 09: Dashboard | AI/BI Dashboard、Genie |
+# MAGIC | 09: Dashboard | AI/BI Dashboard、Genie精度改善 |
 # MAGIC | 10: Operations | System Tables、コスト管理 |

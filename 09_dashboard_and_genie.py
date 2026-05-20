@@ -202,21 +202,41 @@
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC -- カラムコメント: 各カラムの意味とリスク用語との対応を明示
-# MAGIC ALTER TABLE v_daily_risk_summary ALTER COLUMN daily_return
-# MAGIC   COMMENT '日次対数リターン（LN(当日終値/前日終値)）。ボラティリティ = この値の標準偏差（STDDEV）。テールリスク = この値の1パーセンタイル（PERCENTILE 0.01）。VaR99 = この値の1パーセンタイル。';
-# MAGIC
-# MAGIC ALTER TABLE v_daily_risk_summary ALTER COLUMN weight
-# MAGIC   COMMENT 'ポートフォリオにおける銘柄のウェイト（均等加重=約3.4%）。エクスポージャー = weight * STDDEV(daily_return) で計算。';
-# MAGIC
-# MAGIC ALTER TABLE v_daily_risk_summary ALTER COLUMN close
-# MAGIC   COMMENT '当日の終値（USD）。株価の推移分析に使用。';
-# MAGIC
-# MAGIC ALTER TABLE v_daily_risk_summary ALTER COLUMN country
-# MAGIC   COMMENT '銘柄の所属国（CHILE, COLOMBIA, MEXICO, PANAMA, PERU）。国別リスク分解のグループキー。';
-# MAGIC
-# MAGIC ALTER TABLE v_daily_risk_summary ALTER COLUMN industry
-# MAGIC   COMMENT '銘柄の業種分類。業種別リスク寄与度の分析に使用。';
+# MAGIC -- カラムコメント付きでビューを再作成
+# MAGIC -- ビューは ALTER COLUMN COMMENT が使えないため、カラムコメント付き SELECT で再定義
+# MAGIC CREATE OR REPLACE VIEW v_daily_risk_summary
+# MAGIC (
+# MAGIC   date COMMENT '営業日',
+# MAGIC   ticker COMMENT '銘柄コード（Yahoo Finance ティッカー）',
+# MAGIC   close COMMENT '当日の終値（USD）。株価の推移分析に使用。',
+# MAGIC   country COMMENT '銘柄の所属国（CHILE, COLOMBIA, MEXICO, PANAMA, PERU）。国別リスク分解のグループキー。',
+# MAGIC   industry COMMENT '銘柄の業種分類。業種別リスク寄与度の分析に使用。',
+# MAGIC   company COMMENT '企業名',
+# MAGIC   weight COMMENT 'ポートフォリオにおける銘柄のウェイト（均等加重=約3.4%）。エクスポージャー = weight * STDDEV(daily_return) で計算。',
+# MAGIC   daily_return COMMENT '日次対数リターン（LN(当日終値/前日終値)）。ボラティリティ = この値の標準偏差（STDDEV）。テールリスク = この値の1パーセンタイル（PERCENTILE 0.01）。VaR99 = この値の1パーセンタイル。'
+# MAGIC )
+# MAGIC AS
+# MAGIC SELECT
+# MAGIC   s.date,
+# MAGIC   s.ticker,
+# MAGIC   s.close,
+# MAGIC   p.country,
+# MAGIC   p.industry,
+# MAGIC   p.company,
+# MAGIC   p.weight,
+# MAGIC   LN(s.close / LAG(s.close) OVER (PARTITION BY s.ticker ORDER BY s.date)) AS daily_return
+# MAGIC FROM market_data s
+# MAGIC JOIN (SELECT * FROM VALUES
+# MAGIC   ('BCH', 'CHILE', 'Banks', 'Banco de Chile', 0.0344827586),
+# MAGIC   ('BSAC', 'CHILE', 'Banks', 'Banco Santander-Chile', 0.0344827586),
+# MAGIC   ('CIB', 'COLOMBIA', 'Banks', 'BanColombia S.A.', 0.0344827586),
+# MAGIC   ('EC', 'COLOMBIA', 'Oil & Gas Producers', 'Ecopetrol S.A.', 0.0344827586),
+# MAGIC   ('AMX', 'MEXICO', 'Mobile Telecommunications', 'America Movil', 0.0344827586),
+# MAGIC   ('SCCO', 'PERU', 'Industrial Metals & Mining', 'Southern Copper', 0.0344827586),
+# MAGIC   ('BAP', 'PERU', 'Banks', 'Credicorp Ltd.', 0.0344827586)
+# MAGIC   AS p(ticker, country, industry, company, weight)
+# MAGIC ) p ON s.ticker = p.ticker
+# MAGIC WHERE s.close IS NOT NULL
 
 # COMMAND ----------
 
