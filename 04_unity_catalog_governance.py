@@ -68,7 +68,7 @@
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC SHOW TABLES IN IDENTIFIER(CONCAT(current_catalog(), '.', current_schema()))
+# MAGIC SHOW TABLES
 
 # COMMAND ----------
 
@@ -101,8 +101,8 @@
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC -- 現在の権限を確認
-# MAGIC SHOW GRANTS ON SCHEMA IDENTIFIER(CONCAT(current_catalog(), '.', current_schema()))
+# MAGIC -- 現在の権限を確認（スキーマ名は config/application.yaml の値に合わせてください）
+# MAGIC SHOW GRANTS ON SCHEMA var_risk_demo
 
 # COMMAND ----------
 

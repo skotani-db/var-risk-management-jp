@@ -107,19 +107,20 @@ stocks_df = (
 
 # COMMAND ----------
 
-# ASOF JOIN で特徴量を結合
-tickers_df = stocks_df.select('ticker').distinct()
-market_with_tickers = market_df.crossJoin(tickers_df)
+# 時点結合で特徴量を結合（pandas merge_asof）
+import pandas as pd
 
-stocks_df.createOrReplaceTempView("stock_returns")
-market_with_tickers.createOrReplaceTempView("market_features")
+stocks_pd = stocks_df.toPandas().sort_values('date')
+market_pd_asof = market_df.select(F.col('date').alias('market_date'), 'features').toPandas().sort_values('market_date')
 
-features_df = spark.sql("""
-    SELECT s.date, s.ticker, m.features, s.`return`
-    FROM stock_returns s
-    ASOF JOIN market_features m
-    ON s.ticker = m.ticker AND s.date >= m.date
-""").filter(F.col('features').isNotNull())
+result_dfs = []
+for ticker in stocks_pd['ticker'].unique():
+    ticker_df = stocks_pd[stocks_pd['ticker'] == ticker].copy()
+    merged = pd.merge_asof(ticker_df, market_pd_asof, left_on='date', right_on='market_date', direction='backward')
+    result_dfs.append(merged)
+
+features_pd = pd.concat(result_dfs, ignore_index=True).dropna(subset=['features'])
+features_df = spark.createDataFrame(features_pd[['date', 'ticker', 'features', 'return']])
 
 display(features_df)
 

@@ -207,7 +207,7 @@ inv_returns_df = (
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### VaR と投資リターンの結合（ASOF JOIN）
+# MAGIC ### VaR と投資リターンの時点結合
 
 # COMMAND ----------
 
@@ -220,18 +220,13 @@ risk_exposure_df = (
     .orderBy('date')
 )
 
-inv_returns_df.createOrReplaceTempView("inv_returns")
-risk_exposure_df.createOrReplaceTempView("risk_exposure")
+# pandas merge_asof で時点結合
+inv_pd = inv_returns_df.toPandas().sort_values('date')
+risk_pd = risk_exposure_df.toPandas().sort_values('date').rename(columns={'date': 'risk_date'})
 
-asof_df = spark.sql("""
-    SELECT
-        i.date,
-        i.`return`,
-        r.var_99
-    FROM inv_returns i
-    ASOF JOIN risk_exposure r
-    ON i.date >= r.date
-""").na.drop().orderBy('date')
+asof_pd = pd.merge_asof(inv_pd, risk_pd, left_on='date', right_on='risk_date', direction='backward')
+asof_pd = asof_pd.dropna(subset=['var_99'])
+asof_df = spark.createDataFrame(asof_pd[['date', 'return', 'var_99']]).orderBy('date')
 
 display(asof_df)
 

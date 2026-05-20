@@ -90,7 +90,7 @@ stocks_stream = (
     .load(stocks_source)
     # 取り込み時刻を付与（監査証跡として有用）
     .withColumn("_ingested_at", F.current_timestamp())
-    .withColumn("_source_file", F.input_file_name())
+    .withColumn("_source_file", F.col("_metadata.file_path"))
 )
 
 # COMMAND ----------
@@ -155,7 +155,7 @@ indicators_stream = (
     .option("header", "true")
     .load(indicators_source)
     .withColumn("_ingested_at", F.current_timestamp())
-    .withColumn("_source_file", F.input_file_name())
+    .withColumn("_source_file", F.col("_metadata.file_path"))
 )
 
 (

@@ -44,27 +44,20 @@ print(f"試行回数/銘柄: {config['monte-carlo']['runs']:,}")
 # MAGIC ## 1. マーケットボラティリティの取得
 # MAGIC
 # MAGIC 各シミュレーション日の **最新のボラティリティ統計量** を取得します。
-# MAGIC Spark SQL の ASOF JOIN を使って、各日付に対して最も近い過去のボラティリティを結合します。
+# MAGIC pandas merge_asof を使って、各日付に対して最も近い過去のボラティリティを結合します。
 
 # COMMAND ----------
 
-# ボラティリティテーブルと実行日テーブルを準備
+# ボラティリティテーブルと実行日テーブルを準備し、時点結合
 vol_df = spark.read.table(config['database']['tables']['volatility'])
-rdates_df = spark.createDataFrame(pd.DataFrame(run_dates, columns=['date']))
 
-vol_df.createOrReplaceTempView("volatility_data")
-rdates_df.createOrReplaceTempView("run_dates")
+vol_pd = vol_df.toPandas().sort_values('date')
+rdates_pd = pd.DataFrame(run_dates, columns=['date']).sort_values('date')
 
-# ASOF JOIN で各実行日の最新ボラティリティを取得
-volatility_df = spark.sql("""
-    SELECT
-        r.date,
-        v.vol_cov,
-        v.vol_avg
-    FROM run_dates r
-    ASOF JOIN volatility_data v
-    ON r.date >= v.date
-""")
+merged_pd = pd.merge_asof(rdates_pd, vol_pd, on='date', direction='backward')
+merged_pd = merged_pd.dropna(subset=['vol_cov'])
+
+volatility_df = spark.createDataFrame(merged_pd[['date', 'vol_cov', 'vol_avg']])
 
 display(volatility_df)
 
@@ -237,7 +230,7 @@ print("Liquid Clustering 適用完了")
 # MAGIC このノートブックでは以下を学びました：
 # MAGIC - **Spark の分散処理** で数万試行のモンテカルロシミュレーションを並列実行
 # MAGIC - **シード戦略** による再現性の確保
-# MAGIC - **ASOF JOIN** でシミュレーション日ごとの最新ボラティリティを取得
+# MAGIC - **時点結合** でシミュレーション日ごとの最新ボラティリティを取得
 # MAGIC - **Liquid Clustering** によるDeltaテーブルの最適化
 # MAGIC - シミュレーション結果の **ベクトル化** による効率的な保存
 # MAGIC

@@ -9,7 +9,7 @@
 # MAGIC
 # MAGIC ## このノートブックで学ぶこと
 # MAGIC - **Window 関数**: スライディングウィンドウによるボラティリティ計算
-# MAGIC - **ASOF JOIN**: 時系列データの時点結合（Spark SQL ネイティブ機能）
+# MAGIC - **時点結合（AS-OF JOIN）**: pandas merge_asof による時系列結合
 # MAGIC - **対数リターン**: リスクモデルの基本となるリターン計算
 # MAGIC
 # MAGIC ## リスク管理でのメリット
@@ -155,58 +155,52 @@ display(stocks_df)
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 4. ASOF JOIN による特徴量作成
+# MAGIC ## 4. 時点結合による特徴量作成
 # MAGIC
 # MAGIC マーケット指標データと株式リターンを **時点結合** します。
 # MAGIC
-# MAGIC ### ASOF JOIN とは
+# MAGIC ### 時点結合（AS-OF JOIN）とは
 # MAGIC 通常のJOINは完全に一致するキーでしか結合できませんが、
-# MAGIC **ASOF JOIN** は「最も近い時刻」で結合します。
+# MAGIC **時点結合** は「最も近い過去の時刻」で結合します。
 # MAGIC
 # MAGIC ```
-# MAGIC 株式リターン (10:05)  ←ASOF JOIN→  市場指標 (10:03)  ← 10:05以前で最も近い時刻
-# MAGIC 株式リターン (10:10)  ←ASOF JOIN→  市場指標 (10:08)
+# MAGIC 株式リターン (10:05)  ← 時点結合 →  市場指標 (10:03)  ← 10:05以前で最も近い時刻
+# MAGIC 株式リターン (10:10)  ← 時点結合 →  市場指標 (10:08)
 # MAGIC ```
 # MAGIC
-# MAGIC Spark SQL の `ASOF JOIN` 構文（DBR 13.3+ / Serverless v5 対応）を使用します。
+# MAGIC ここでは Window 関数 + `last()` を使った PySpark ネイティブ実装で実現します。
 
 # COMMAND ----------
 
-# 市場指標データを一時ビューとして登録
+# 市場指標データを取得
 market_df = (
     spark.read.table(config['database']['tables']['volatility'])
     .filter(F.col('date') < model_date)
-    .select('date', 'features')
+    .select(F.col('date').alias('market_date'), F.col('features'))
 )
 
-# 各銘柄に対してクロス結合で市場データを紐付け
-tickers_df = stocks_df.select('ticker').distinct()
-market_with_tickers = market_df.crossJoin(tickers_df)
+# pandas merge_asof で時点結合（マーケットデータはメモリに収まるサイズ）
+import pandas as pd
 
-# ASOF JOIN のため一時ビューを作成
-stocks_df.createOrReplaceTempView("stock_returns")
-market_with_tickers.createOrReplaceTempView("market_features")
+stocks_pd = stocks_df.toPandas().sort_values('date')
+market_pd_asof = market_df.toPandas().sort_values('market_date')
 
-# COMMAND ----------
+# 各銘柄ごとに merge_asof
+result_dfs = []
+for ticker in stocks_pd['ticker'].unique():
+    ticker_df = stocks_pd[stocks_pd['ticker'] == ticker].copy()
+    merged = pd.merge_asof(
+        ticker_df,
+        market_pd_asof,
+        left_on='date',
+        right_on='market_date',
+        direction='backward'
+    )
+    result_dfs.append(merged)
 
-# MAGIC %md
-# MAGIC ### Spark SQL の ASOF JOIN を使用
-# MAGIC
-# MAGIC `ON ... AND s.date >= m.date` + `MATCH_CONDITION` で、
-# MAGIC 各株式リターンの日付に対して「最も近い過去の市場指標」を結合します。
-
-# COMMAND ----------
-
-features_df = spark.sql("""
-    SELECT
-        s.date,
-        s.ticker,
-        m.features,
-        s.`return`
-    FROM stock_returns s
-    ASOF JOIN market_features m
-    ON s.ticker = m.ticker AND s.date >= m.date
-""")
+features_pd = pd.concat(result_dfs, ignore_index=True)
+features_pd = features_pd.dropna(subset=['features'])
+features_df = spark.createDataFrame(features_pd[['date', 'ticker', 'features', 'return']])
 
 display(features_df)
 
@@ -242,7 +236,7 @@ plt.show()
 # MAGIC
 # MAGIC このノートブックでは以下を学びました：
 # MAGIC - **Window 関数** でスライディングウィンドウによるボラティリティ計算
-# MAGIC - **ASOF JOIN** で時系列データの時点結合（tempo ライブラリ不要）
+# MAGIC - **時点結合** で時系列データの結合（pandas merge_asof）
 # MAGIC - **対数リターン** の計算と特徴量の作成
 # MAGIC - **相関分析** によるマーケットファクター間の関係性把握
 # MAGIC
