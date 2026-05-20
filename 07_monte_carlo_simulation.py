@@ -230,6 +230,36 @@ print("Liquid Clustering 適用完了")
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC ## 6. 性能チューニング Tips: クエリプロファイルの活用
+# MAGIC
+# MAGIC モンテカルロシミュレーションはこのデモで最も計算コストが高いノートブックです。
+# MAGIC 実行が遅い場合、Databricks の **クエリプロファイル** を使ってボトルネックを特定できます。
+# MAGIC
+# MAGIC ### クエリプロファイルの開き方
+# MAGIC > 1. セルの実行中（または実行後）、セル下部に **Spark ジョブのリンク** が表示されます
+# MAGIC >    - 例: `Spark Jobs: View (Stages: 3/3, Tasks: 120/120)` のようなリンク
+# MAGIC > 2. このリンクをクリック → **クエリプロファイル** 画面が開きます
+# MAGIC > 3. DAG（実行計画）が視覚的に表示され、各ステージの詳細が確認できます
+# MAGIC
+# MAGIC ### クエリプロファイルで確認すべきポイント
+# MAGIC
+# MAGIC | 確認項目 | 見方 | 対策 |
+# MAGIC |---|---|---|
+# MAGIC | **Shuffle の量** | Exchange ノードのデータサイズ | `repartition` の数を調整 |
+# MAGIC | **Spill（ディスク溢れ）** | ノードに赤い警告マーク | クラスターのメモリを増やす / パーティション数を増やす |
+# MAGIC | **Skew（データ偏り）** | タスクの実行時間にばらつき | パーティションキーを見直す |
+# MAGIC | **UDF のボトルネック** | Python UDF ノードの実行時間 | pandas UDF に置き換え / ロジック最適化 |
+# MAGIC | **Scan のデータ量** | Scan ノードの行数・バイト数 | フィルタの pushdown が効いているか確認 |
+# MAGIC
+# MAGIC ### このノートブックの性能改善例
+# MAGIC - **`repartition(executors, 'date')`**: シミュレーション日ごとにパーティションを分散
+# MAGIC - **`Liquid Clustering`**: 後続クエリ（VaR集計）で `date` や `ticker` での絞り込みを高速化
+# MAGIC - **試行数の調整**: `config['monte-carlo']['runs']` を環境に合わせて調整（本番: 10,000〜100,000、開発: 2,000）
+# MAGIC - **pandas UDF**: `spark_udf` の代わりに `pandas_udf` を使用し、バッチ単位で推論を効率化
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ## まとめ
 # MAGIC
 # MAGIC このノートブックでは以下を学びました：
