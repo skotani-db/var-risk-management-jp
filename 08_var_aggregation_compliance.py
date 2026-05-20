@@ -51,6 +51,7 @@ simulation_df = (
 
 min_date = trials_df.select(F.min('date').alias('date')).toPandas().iloc[0].date
 
+# 全銘柄の加重リターンベクトルを要素ごとに合計 → ポートフォリオ全体の試行結果
 point_in_time_vector = (
     simulation_df
     .filter(F.col('date') == min_date)
@@ -221,6 +222,7 @@ risk_exposure_df = (
 )
 
 # pandas merge_asof で時点結合
+# 実績リターン（P&L）とVaR推定値を時点結合（VaR計算日 ≤ 実績日 で最も近い値を使用）
 inv_pd = inv_returns_df.toPandas().sort_values('date')
 risk_pd = risk_exposure_df.toPandas().sort_values('date').rename(columns={'date': 'risk_date'})
 
@@ -239,12 +241,15 @@ display(asof_df)
 
 from utils.var_udf import count_breaches
 
-days_fn = lambda i: i * 86400
+days_fn = lambda i: i * 86400  # 日数を秒数に変換（Window の rangeBetween 用）
+# バーゼル規定: 直近250営業日のローリングウィンドウで閾値超過を集計
 compliance_window = Window.orderBy(F.col("date").cast("long")).rangeBetween(-days_fn(250), 0)
 
 compliance_df = (
     asof_df
+    # 各日付の時点で、過去250日分のリターンをリストとして収集
     .withColumn('previous_return', F.collect_list('return').over(compliance_window))
+    # 超過回数からバーゼルのカラーゾーン（0=Green, 1=Yellow, 2=Red）を判定
     .withColumn('basel', count_breaches('previous_return', 'var_99'))
     .drop('previous_return')
     .toPandas()

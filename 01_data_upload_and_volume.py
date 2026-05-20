@@ -142,15 +142,18 @@ for ticker in tickers:
     n_days = len(dates)
     initial_price = params['price']
 
-    # 幾何ブラウン運動 + レジームシフトイベント
+    # 幾何ブラウン運動（GBM）で日次リターンを生成（平均 mu, 標準偏差 sigma の正規分布）
     daily_returns = np.random.normal(params['mu'], params['sigma'], n_days)
+    # レジームシフト（急騰・急落イベント）をランダムに挿入し、リアルな値動きを再現
     n_events = np.random.randint(3, 8)
     event_days = np.random.choice(n_days, n_events, replace=False)
     daily_returns[event_days] += np.random.normal(0, params['sigma'] * 3, n_events)
+    # 累積リターンを指数変換して価格系列に変換（GBM の離散近似）
     price_series = initial_price * np.exp(np.cumsum(daily_returns))
 
     for i, date in enumerate(dates):
         close = price_series[i]
+        # 日中の OHLC を終値ベースで生成（日中変動は日次ボラティリティの 60%と仮定）
         intraday_vol = params['sigma'] * 0.6
         open_price = close * np.exp(np.random.normal(0, intraday_vol))
         high = max(open_price, close) * (1 + abs(np.random.normal(0, intraday_vol * 0.5)))
@@ -249,8 +252,11 @@ corr_matrix = np.array([
     [-0.40,-0.35, 0.10, 1.00, -0.38],
     [0.96, 0.90, 0.32, -0.38, 1.00],
 ])
+# コレスキー分解: 相関行列を下三角行列に分解し、相関のある乱数を生成する準備
 L = np.linalg.cholesky(corr_matrix)
+# 無相関の標準正規乱数を生成
 uncorrelated = np.random.normal(0, 1, (n_days, 5))
+# 下三角行列を掛けることで、指定した相関構造を持つ乱数に変換
 correlated = uncorrelated @ L.T
 
 indicator_params = {
@@ -266,8 +272,9 @@ dummy_data = {'date': dates}
 for idx, col_name in enumerate(indicator_cols):
     params = indicator_params.get(col_name, {'start': 100, 'mu': 0.0002, 'sigma': 0.015})
     if col_name == 'TREASURY':
+        # 金利はVasicekモデル（平均回帰過程）で生成: 長期平均に徐々に引き寄せられる
         mean_level = 4.0
-        kappa = 0.02
+        kappa = 0.02  # 回帰速度: 値が大きいほど早く長期平均に戻る
         prices = np.zeros(n_days)
         prices[0] = params['start']
         for i in range(1, n_days):

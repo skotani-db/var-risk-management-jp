@@ -82,15 +82,15 @@ stocks_schema_location = f"{volume_path}/_schema/stocks"
 # Auto Loader でストリーミング読み込み
 stocks_stream = (
     spark.readStream
-    .format("cloudFiles")
+    .format("cloudFiles")  # cloudFiles = Auto Loader のフォーマット指定
     .option("cloudFiles.format", "csv")
-    .option("cloudFiles.schemaLocation", stocks_schema_location)
-    .option("cloudFiles.inferColumnTypes", "true")
+    .option("cloudFiles.schemaLocation", stocks_schema_location)  # スキーマ推論結果の永続化先（再起動時に再推論を防ぐ）
+    .option("cloudFiles.inferColumnTypes", "true")  # CSV の型を自動推論（デフォルトでは全カラムが string になる）
     .option("header", "true")
     .load(stocks_source)
     # 取り込み時刻を付与（監査証跡として有用）
     .withColumn("_ingested_at", F.current_timestamp())
-    .withColumn("_source_file", F.col("_metadata.file_path"))
+    .withColumn("_source_file", F.col("_metadata.file_path"))  # 取り込み元ファイルのパス（監査証跡として有用）
 )
 
 # COMMAND ----------
@@ -116,10 +116,10 @@ stocks_table = config['database']['tables']['stocks']
 (
     stocks_stream.writeStream
     .format("delta")
-    .option("checkpointLocation", stocks_checkpoint)
-    .option("mergeSchema", "true")
+    .option("checkpointLocation", stocks_checkpoint)  # チェックポイント: 処理済みファイルの記録先（重複処理を防止）
+    .option("mergeSchema", "true")  # スキーマ進化: ソース側のカラム追加に自動対応
     .outputMode("append")
-    .trigger(availableNow=True)
+    .trigger(availableNow=True)  # 現在利用可能な全ファイルを処理して停止（バッチモード）
     .toTable(stocks_table)
     .awaitTermination()
 )

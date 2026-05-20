@@ -83,8 +83,10 @@ display(volatility_df)
 from utils.var_utils import create_seed_df
 from utils.var_udf import simulate_market
 
+# 各試行に固有のシード（0〜N-1）を割り当て → 同じシードなら同じ乱数列で再現可能
 seed_df = create_seed_df(config['monte-carlo']['runs'])
 
+# ボラティリティ × 試行ID のクロス結合 → 各ワーカーが独立にシミュレーション実行
 market_conditions = (
     volatility_df
     .join(spark.createDataFrame(seed_df))
@@ -170,8 +172,10 @@ display(simulations.limit(20))
 
 from pyspark.ml.linalg import Vectors, VectorUDT
 
+# 各銘柄・日付ごとの試行結果（trial_id, return のペア）を1つの密ベクトルに変換
 @udf(VectorUDT())
 def to_vector(xs, ys):
+    # まずスパースベクトル（trial_id→return のマッピング）として構築し、密ベクトルに変換
     v = Vectors.sparse(config['monte-carlo']['runs'], zip(xs, ys)).toArray()
     return Vectors.dense(v)
 
@@ -220,6 +224,7 @@ _ = (
 
 # COMMAND ----------
 
+# Liquid Clustering: date と ticker でデータを物理的に再配置し、フィルタクエリを高速化
 _ = sql('ALTER TABLE {} CLUSTER BY (`date`, `ticker`)'.format(
     config['database']['tables']['mc_trials']
 ))

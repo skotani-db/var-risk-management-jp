@@ -203,8 +203,9 @@ if quarantine_df.count() > 0:
 
 from pyspark.sql import Window
 
-# 日次対数リターンを計算
+# 銘柄ごとに日付順で前日の終値を取得するための Window 定義
 window_prev = Window.partitionBy('ticker').orderBy('date')
+# 前日比の対数リターンを計算（対数リターンは加法性がありリスク計算に適する）
 returns_df = (
     clean_df
     .withColumn('prev_close', F.lag('close', 1).over(window_prev))
@@ -212,7 +213,7 @@ returns_df = (
     .withColumn('daily_return', F.log(F.col('close') / F.col('prev_close')))
 )
 
-# 銘柄ごとの平均・標準偏差を計算
+# 銘柄ごとのリターンの平均・標準偏差を計算（Z-score の基準値）
 stats_df = (
     returns_df
     .groupBy('ticker')
@@ -222,7 +223,7 @@ stats_df = (
     )
 )
 
-# Z-score を計算
+# Z-score = (実績 - 平均) / 標準偏差。|Z| > 3 なら統計的に異常（約0.3%の確率）
 anomaly_df = (
     returns_df
     .join(stats_df, 'ticker')
@@ -291,8 +292,9 @@ plt.show()
 
 # COMMAND ----------
 
-# 価格固着の検出（3日連続で同じ終値）
+# 過去3営業日分の終値をリストとして収集する Window（固着検出用）
 window_3d = Window.partitionBy('ticker').orderBy('date').rowsBetween(-2, 0)
+# 3日分の終値が全て同じ = 価格固着（データフィードの異常を示唆）
 stale_df = (
     clean_df
     .withColumn('close_list', F.collect_list('close').over(window_3d))

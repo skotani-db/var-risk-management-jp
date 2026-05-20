@@ -89,19 +89,22 @@ display(market_returns_df)
 from pyspark.sql import Window
 from utils.var_udf import compute_avg, compute_cov
 
-days = lambda i: i * 86400
+days = lambda i: i * 86400  # 日数を秒数に変換（rangeBetween はタイムスタンプの秒数で範囲指定）
+# 過去 N 日間のスライディングウィンドウを定義（N = config の volatility 日数）
 volatility_window = Window.orderBy(F.col('date').cast('long')).rangeBetween(
     -days(config['monte-carlo']['volatility']), 0
 )
 
 volatility_df = (
     get_market_returns()
+    # 各時点で、ウィンドウ内の全特徴量ベクトルをリストとして収集
     .select(
         F.col('date'),
         F.col('features'),
         F.collect_list('features').over(volatility_window).alias('volatility')
     )
     .filter(F.size('volatility') > 1)
+    # 収集したリターンベクトル群から平均（vol_avg）と共分散行列（vol_cov）を計算
     .select(
         F.col('date'),
         F.col('features'),
@@ -191,6 +194,7 @@ market_pd_asof = market_df.toPandas().sort_values('market_date')
 result_dfs = []
 for ticker in stocks_pd['ticker'].unique():
     ticker_df = stocks_pd[stocks_pd['ticker'] == ticker].copy()
+    # direction='backward': 株式の日付以前で最も近い市場データを結合（未来のデータを使わない）
     merged = pd.merge_asof(
         ticker_df,
         market_pd_asof,

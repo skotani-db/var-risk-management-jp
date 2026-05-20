@@ -149,19 +149,22 @@ train_model_schema = StructType([
     StructField('weights', ArrayType(FloatType()), True)
 ])
 
+# pandas UDF (GROUPED_MAP): ticker ごとにグループ化し、各グループで独立にモデル訓練
 @pandas_udf(train_model_schema, PandasUDFType.GROUPED_MAP)
 def train_model(group, pdf):
     import pandas as pd
     import numpy as np
     from sklearn.linear_model import LinearRegression
 
+    # 特徴量行列を構築: 各行のマーケットファクターに非線形変換（x, x², x³, √|x|）を適用
     X = np.array([non_linear_features(row) for row in np.array(pdf['features'])])
     y = np.array(pdf['return'])
 
+    # 線形回帰で各銘柄のリターンをマーケットファクターから予測するモデルを訓練
     model = LinearRegression(fit_intercept=True)
     model.fit(X, y)
 
-    # 重み: [intercept, coef1, coef2, ...]
+    # 重み = [切片, 係数1, 係数2, ...] の形式で返す（後でpyfuncモデルで使用）
     weights = [float(model.intercept_)] + [float(c) for c in model.coef_]
     w_df = pd.DataFrame(data=[[weights]], columns=['weights'])
     w_df['ticker'] = group[0]
@@ -273,8 +276,10 @@ with mlflow.start_run(run_name='value-at-risk') as run:
     python_model = RiskMLFlowModel(model_df)
 
     # シグネチャを推論（入出力の型を自動検出）
+    # シグネチャ推論用のサンプルデータ（モデルの入出力型を自動検出）
     model_input_df = features_df.select('ticker', 'features').limit(10).toPandas()
     model_output_df = python_model.predict(None, model_input_df)
+    # 推論されたシグネチャはモデルに付与され、不正な入力データを防止する
     model_signature = infer_signature(model_input_df, model_output_df)
 
     # モデルをログ + Unity Catalog に登録
@@ -288,8 +293,10 @@ with mlflow.start_run(run_name='value-at-risk') as run:
     # champion エイリアスを設定
     # 登録済みモデルの最新バージョンを取得
     client = mlflow.tracking.MlflowClient()
+    # 登録済みの全バージョンを検索し、最新バージョン番号を取得
     model_versions = client.search_model_versions(f"name='{uc_model_name}'")
     latest_version = max(int(mv.version) for mv in model_versions)
+    # champion エイリアスを設定 → 下流プロセスは常に @champion で最新承認版を参照
     client.set_registered_model_alias(
         name=uc_model_name,
         alias="champion",
@@ -318,9 +325,10 @@ with mlflow.start_run(run_name='value-at-risk') as run:
 # champion モデルをロードして推論
 # Serverless 環境では mlflow.pyfunc.spark_udf が制限されるため、
 # pandas UDF またはモデルオブジェクトを直接使用します
+# Unity Catalog から champion エイリアスのモデルをロード（常に最新の承認済みモデルを参照）
 loaded_model = mlflow.pyfunc.load_model('models:/{}@champion'.format(uc_model_name))
 
-# pandas UDF で分散推論
+# pandas UDF でバッチ単位の推論を実行（行ごとの UDF より効率的）
 from pyspark.sql.functions import pandas_udf
 import pandas as pd
 
