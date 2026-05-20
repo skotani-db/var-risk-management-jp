@@ -24,6 +24,7 @@
 # COMMAND ----------
 
 from pyspark.sql import functions as F
+from pyspark.sql.column import Column
 from pyspark.ml.stat import Summarizer
 from utils.var_udf import weighted_returns, get_var_udf
 
@@ -53,8 +54,7 @@ min_date = trials_df.select(F.min('date').alias('date')).toPandas().iloc[0].date
 point_in_time_vector = (
     simulation_df
     .filter(F.col('date') == min_date)
-    .groupBy('date')
-    .agg(Summarizer.sum(F.col('weighted_returns')).alias('returns'))
+    .select(Summarizer.sum(F.col('weighted_returns')).alias('returns'))
     .toPandas().iloc[0].returns.toArray()
 )
 
@@ -78,7 +78,7 @@ import matplotlib.pyplot as plt
 risk_exposure = (
     simulation_df
     .groupBy('date')
-    .agg(Summarizer.sum(F.col('weighted_returns')).alias('returns'))
+    .agg(Summarizer.sum(simulation_df['weighted_returns']).alias('returns'))
     .withColumn('var_99', get_var_udf(F.col('returns'), F.lit(99)))
     .drop('returns')
     .orderBy('date')
@@ -109,7 +109,7 @@ plt.show()
 risk_exposure_country = (
     simulation_df
     .groupBy('date', 'country')
-    .agg(Summarizer.sum(F.col('weighted_returns')).alias('returns'))
+    .agg(Summarizer.sum(simulation_df['weighted_returns']).alias('returns'))
     .withColumn('var_99', get_var_udf(F.col('returns'), F.lit(99)))
     .drop('returns')
     .orderBy('date')
@@ -142,7 +142,7 @@ risk_exposure_industry = (
     simulation_df
     .filter(F.col('country') == 'PERU')
     .groupBy('date', 'industry')
-    .agg(Summarizer.sum(F.col('weighted_returns')).alias('returns'))
+    .agg(Summarizer.sum(simulation_df['weighted_returns']).alias('returns'))
     .withColumn('var_99', get_var_udf(F.col('returns'), F.lit(99)))
     .drop('returns')
     .orderBy('date')
@@ -214,7 +214,7 @@ inv_returns_df = (
 risk_exposure_df = (
     simulation_df
     .groupBy('date')
-    .agg(Summarizer.sum(F.col('weighted_returns')).alias('returns'))
+    .agg(Summarizer.sum(simulation_df['weighted_returns']).alias('returns'))
     .withColumn('var_99', get_var_udf(F.col('returns'), F.lit(99)))
     .drop('returns')
     .orderBy('date')
