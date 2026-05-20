@@ -143,35 +143,171 @@
 # MAGIC %md
 # MAGIC ## 3. Genie によるセルフサービス分析
 # MAGIC
-# MAGIC **Genie** は Databricks の AI アシスタントで、自然言語でデータに質問できます。
+# MAGIC **Genie** は Databricks の AI アシスタントで、自然言語でデータに質問し SQL を自動生成します。
+# MAGIC ただし、**ドメイン固有の専門用語** に対応するには適切な設定が必要です。
 # MAGIC
-# MAGIC ### Genie でできること
-# MAGIC - 「先月のVaRが最も高かった日は？」→ SQLを自動生成して結果を返答
-# MAGIC - 「メキシコの銘柄のボラティリティを比較して」→ チャート付きで回答
-# MAGIC - 「過去1年で最大の損失を出した銘柄は？」→ 即座に分析
+# MAGIC ここでは「設定なしで質問 → 失敗 → メタデータを充実 → 成功」の流れを体験します。
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Step 1: まず Genie スペースを最小構成で作成
 # MAGIC
-# MAGIC ### Genie スペースの設定
-# MAGIC
-# MAGIC | 設定項目 | 推奨値 |
-# MAGIC |---|---|
-# MAGIC | テーブル | `market_data`, `market_indicators`, `v_daily_risk_summary` |
-# MAGIC | 説明 | 「ラテンアメリカ株式ポートフォリオのリスク分析データ」 |
-# MAGIC | サンプル質問 | 下記参照 |
-# MAGIC
-# MAGIC ### サンプル質問例
-# MAGIC ```
-# MAGIC - 「各国のポートフォリオ銘柄数と平均ボラティリティを教えて」
-# MAGIC - 「最もボラティリティが高い銘柄トップ5は？」
-# MAGIC - 「2025年1月の銘柄別リターンを棒グラフで表示して」
-# MAGIC - 「S&P500と最も相関が高い銘柄は？」
-# MAGIC ```
-# MAGIC
-# MAGIC ### UI操作ポイント
 # MAGIC > 1. 左メニュー「Genie」→「新しい Genie スペースを作成」
 # MAGIC > 2. スペース名: 「VaR リスク分析」
-# MAGIC > 3. テーブルを追加: 上記のテーブル/ビューを選択
-# MAGIC > 4. 「指示」に分析のコンテキストを記述（ポートフォリオの説明等）
-# MAGIC > 5. チャット欄に自然言語で質問を入力
+# MAGIC > 3. テーブルに `v_daily_risk_summary` のみ追加
+# MAGIC > 4. **インストラクション（指示）は空のまま**
+# MAGIC > 5. 「保存」
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Step 2: リスクの専門用語で質問してみる（失敗体験）
+# MAGIC
+# MAGIC 以下の質問を Genie に投げてみてください：
+# MAGIC
+# MAGIC ```
+# MAGIC ポートフォリオ全体のテールリスクが最も高い国はどこですか？
+# MAGIC ```
+# MAGIC
+# MAGIC ```
+# MAGIC ボラティリティが急騰した期間の銘柄別エクスポージャーを見せてください
+# MAGIC ```
+# MAGIC
+# MAGIC ```
+# MAGIC 2025年Q1のヒストリカルVaR99を月次で比較してください
+# MAGIC ```
+# MAGIC
+# MAGIC **期待される結果**: Genie は「テールリスク」「ボラティリティ」「エクスポージャー」
+# MAGIC 「ヒストリカルVaR99」といった専門用語がテーブルのどのカラム・どの計算に
+# MAGIC 対応するか分からず、**的外れな SQL を生成するか、回答できない** はずです。
+# MAGIC
+# MAGIC これは Genie の限界ではなく、**テーブルのメタデータが不足している** ことが原因です。
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Step 3: テーブル・カラムのコメントを充実させる
+# MAGIC
+# MAGIC Genie はテーブルやカラムの **コメント（説明文）** を参照して SQL を生成します。
+# MAGIC コメントを充実させることで、専門用語とデータの対応関係を教えます。
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC -- テーブルコメント: Genie にテーブルの目的と分析文脈を伝える
+# MAGIC COMMENT ON TABLE v_daily_risk_summary IS
+# MAGIC 'ラテンアメリカ27銘柄の均等加重ポートフォリオの日次リスクサマリー。各行は1銘柄の1営業日のデータ。VaR計算、ボラティリティ分析、国別・業種別リスク分解に使用。';
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC -- カラムコメント: 各カラムの意味とリスク用語との対応を明示
+# MAGIC ALTER TABLE v_daily_risk_summary ALTER COLUMN daily_return
+# MAGIC   COMMENT '日次対数リターン（LN(当日終値/前日終値)）。ボラティリティ = この値の標準偏差（STDDEV）。テールリスク = この値の1パーセンタイル（PERCENTILE 0.01）。VaR99 = この値の1パーセンタイル。';
+# MAGIC
+# MAGIC ALTER TABLE v_daily_risk_summary ALTER COLUMN weight
+# MAGIC   COMMENT 'ポートフォリオにおける銘柄のウェイト（均等加重=約3.4%）。エクスポージャー = weight * STDDEV(daily_return) で計算。';
+# MAGIC
+# MAGIC ALTER TABLE v_daily_risk_summary ALTER COLUMN close
+# MAGIC   COMMENT '当日の終値（USD）。株価の推移分析に使用。';
+# MAGIC
+# MAGIC ALTER TABLE v_daily_risk_summary ALTER COLUMN country
+# MAGIC   COMMENT '銘柄の所属国（CHILE, COLOMBIA, MEXICO, PANAMA, PERU）。国別リスク分解のグループキー。';
+# MAGIC
+# MAGIC ALTER TABLE v_daily_risk_summary ALTER COLUMN industry
+# MAGIC   COMMENT '銘柄の業種分類。業種別リスク寄与度の分析に使用。';
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC -- ポートフォリオビューにもコメントを追加
+# MAGIC COMMENT ON TABLE v_portfolio_daily_return IS
+# MAGIC 'ポートフォリオ全体の日次加重リターン。portfolio_return = 各銘柄の(daily_return * weight)の合計。ポートフォリオレベルのVaR、ボラティリティ計算に使用。';
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC COMMENT ON TABLE v_country_risk_profile IS
+# MAGIC '国別のリスクプロファイル集計。volatility = 日次リターンの標準偏差、worst_day = 最大損失日のリターン。';
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Step 4: Genie インストラクション（指示）を設定
+# MAGIC
+# MAGIC Genie スペースの設定画面で「インストラクション」に以下を貼り付けてください。
+# MAGIC これにより、リスク分野の専門用語を SQL に正しく変換できるようになります。
+# MAGIC
+# MAGIC > **UI操作**: Genie スペース → 右上の歯車アイコン → 「General instructions」に以下を貼り付け
+# MAGIC
+# MAGIC ```
+# MAGIC このデータはラテンアメリカ株式ポートフォリオ（27銘柄、均等加重）のリスク分析用です。
+# MAGIC
+# MAGIC ## 用語とSQL計算の対応
+# MAGIC - 「ボラティリティ」= STDDEV(daily_return) で計算。年率換算は × SQRT(252)
+# MAGIC - 「テールリスク」= PERCENTILE(daily_return, 0.01) で計算（下位1%の損失）
+# MAGIC - 「VaR99」「ヒストリカルVaR」= PERCENTILE(daily_return, 0.01) と同義
+# MAGIC - 「エクスポージャー」= weight × STDDEV(daily_return) で計算
+# MAGIC - 「シャープレシオ」= AVG(daily_return) / STDDEV(daily_return) × SQRT(252)
+# MAGIC - 「最大ドローダウン」= 期間中の累積リターンの最大下落幅
+# MAGIC - 「期待ショートフォール」「CVaR」= VaR99を超えた損失の平均値
+# MAGIC
+# MAGIC ## 分析の注意点
+# MAGIC - daily_return が NULL の行はフィルタする (WHERE daily_return IS NOT NULL)
+# MAGIC - 日付フィルタは date カラムを使用（例: date >= '2025-01-01'）
+# MAGIC - 国別分析は country カラム、業種別は industry カラムでグループ化
+# MAGIC - 四半期は Q1=1-3月, Q2=4-6月, Q3=7-9月, Q4=10-12月
+# MAGIC ```
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Step 5: 同じ質問を再度投げる（成功体験）
+# MAGIC
+# MAGIC Step 2 と同じ質問を Genie に再度投げてみてください：
+# MAGIC
+# MAGIC ```
+# MAGIC ポートフォリオ全体のテールリスクが最も高い国はどこですか？
+# MAGIC ```
+# MAGIC
+# MAGIC **期待される結果**: Genie が以下のような SQL を生成し、正しい回答を返すはずです：
+# MAGIC ```sql
+# MAGIC SELECT country, PERCENTILE(daily_return, 0.01) AS tail_risk
+# MAGIC FROM v_daily_risk_summary
+# MAGIC WHERE daily_return IS NOT NULL
+# MAGIC GROUP BY country
+# MAGIC ORDER BY tail_risk ASC
+# MAGIC ```
+# MAGIC
+# MAGIC 他にも試してみましょう：
+# MAGIC ```
+# MAGIC ボラティリティが急騰した期間の銘柄別エクスポージャーを見せてください
+# MAGIC ```
+# MAGIC ```
+# MAGIC 2025年Q1のヒストリカルVaR99を月次で比較してください
+# MAGIC ```
+# MAGIC ```
+# MAGIC チリの銘柄のシャープレシオを比較して
+# MAGIC ```
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Genie の精度を上げる Tips まとめ
+# MAGIC
+# MAGIC | 施策 | 効果 | 優先度 |
+# MAGIC |---|---|---|
+# MAGIC | **テーブルコメント** | テーブルの用途・文脈を伝える | 高 |
+# MAGIC | **カラムコメント** | 専門用語とカラムの対応を明示 | 高 |
+# MAGIC | **インストラクション** | ドメイン用語の計算式を定義 | 高 |
+# MAGIC | **サンプルクエリ** | 正しいSQLの手本を提供 | 中 |
+# MAGIC | **ビュー名の工夫** | `v_country_risk_profile` のように意味のある名前 | 中 |
+# MAGIC | **不要カラムの除外** | Genie の選択肢を絞り、精度を上げる | 低 |
+# MAGIC
+# MAGIC **ポイント**: Genie は「テーブルの中身を知っている AI」ではなく、
+# MAGIC **「メタデータとインストラクションを手がかりにSQLを生成する AI」** です。
+# MAGIC メタデータの質 = Genie の回答の質 と考えてください。
 
 # COMMAND ----------
 
