@@ -225,6 +225,7 @@ f_cor_pdf = market_pd.corr(method='spearman', min_periods=12)
 
 # COMMAND ----------
 
+import matplotlib.pyplot as plt
 from utils.var_viz import plot_correlation_heatmap
 fig_corr, ax_corr = plot_correlation_heatmap(f_cor_pdf, list(market_indicators.values()))
 plt.show()
