@@ -286,11 +286,14 @@ with mlflow.start_run(run_name='value-at-risk') as run:
     )
 
     # champion エイリアスを設定
+    # 登録済みモデルの最新バージョンを取得
     client = mlflow.tracking.MlflowClient()
+    model_versions = client.search_model_versions(f"name='{uc_model_name}'")
+    latest_version = max(int(mv.version) for mv in model_versions)
     client.set_registered_model_alias(
         name=uc_model_name,
         alias="champion",
-        version=model_info.registered_model_version
+        version=latest_version
     )
 
     # 相関行列プロットを記録
@@ -299,7 +302,7 @@ with mlflow.start_run(run_name='value-at-risk') as run:
     fig_corr, _ = plot_correlation_heatmap(f_cor_pdf, list(market_indicators.values()))
     mlflow.log_figure(fig_corr, "factor_correlation.png")
 
-    print(f"モデル登録完了: {uc_model_name} v{model_info.registered_model_version} (champion)")
+    print(f"モデル登録完了: {uc_model_name} v{latest_version} (champion)")
 
 # COMMAND ----------
 
