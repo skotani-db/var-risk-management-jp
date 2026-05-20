@@ -319,7 +319,8 @@ with mlflow.start_run(run_name='value-at-risk') as run:
 model_udf = mlflow.pyfunc.spark_udf(
     model_uri='models:/{}@champion'.format(uc_model_name),
     result_type='float',
-    spark=spark
+    spark=spark,
+    env_manager='local'
 )
 
 prediction_df = features_df.withColumn('predicted', model_udf(F.struct('ticker', 'features')))

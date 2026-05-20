@@ -136,7 +136,8 @@ uc_model_name = "{}.{}.{}".format(
 model_udf = mlflow.pyfunc.spark_udf(
     model_uri='models:/{}@champion'.format(uc_model_name),
     result_type='float',
-    spark=spark
+    spark=spark,
+    env_manager='local'
 )
 
 # COMMAND ----------
