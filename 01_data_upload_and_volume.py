@@ -2,7 +2,6 @@
 # MAGIC %md
 # MAGIC # 01. データアップロードと Unity Catalog Volume
 # MAGIC
-# MAGIC **進捗: ✅[00] → [01] ●○○○○○○○○○**
 # MAGIC
 # MAGIC ### 前提条件
 # MAGIC > このノートブックを実行する前に、`config/configure_notebook.py` の

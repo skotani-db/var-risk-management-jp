@@ -2,7 +2,6 @@
 # MAGIC %md
 # MAGIC # 06. モデル訓練と MLflow によるモデル管理
 # MAGIC
-# MAGIC **進捗: ✅[00-05] → [06] ●○○○○**
 # MAGIC
 # MAGIC ### 前提条件
 # MAGIC > **05_feature_engineering** を先に実行してください（`market_volatility` テーブルが必要です）。

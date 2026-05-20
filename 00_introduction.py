@@ -2,7 +2,6 @@
 # MAGIC %md
 # MAGIC # VaR（バリュー・アット・リスク）リスク管理 on Databricks
 # MAGIC
-# MAGIC **進捗: [00] ●○○○○○○○○○○**
 # MAGIC
 # MAGIC ## 実行環境の設定
 # MAGIC - **コンピュート**: Serverless を選択（ノートブック右上「接続」→「Serverless」）

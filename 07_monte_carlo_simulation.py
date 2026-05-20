@@ -2,7 +2,6 @@
 # MAGIC %md
 # MAGIC # 07. モンテカルロシミュレーション
 # MAGIC
-# MAGIC **進捗: ✅[00-06] → [07] ●○○○**
 # MAGIC
 # MAGIC ### 前提条件
 # MAGIC > **06_model_training_mlflow** を先に実行してください（MLflow に champion モデルが登録されている必要があります）。

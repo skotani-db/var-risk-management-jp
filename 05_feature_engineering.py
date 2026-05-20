@@ -2,7 +2,6 @@
 # MAGIC %md
 # MAGIC # 05. 特徴量エンジニアリングとボラティリティ計算
 # MAGIC
-# MAGIC **進捗: ✅[00-04] → [05] ●○○○○○**
 # MAGIC
 # MAGIC ### 前提条件
 # MAGIC > **01_data_upload_and_volume** を先に実行してください（`market_data`, `market_indicators` テーブルが必要です）。

@@ -2,7 +2,6 @@
 # MAGIC %md
 # MAGIC # 04. Unity Catalog によるデータガバナンス
 # MAGIC
-# MAGIC **進捗: ✅[00-03] → [04] ●○○○○○○**
 # MAGIC
 # MAGIC ### 前提条件
 # MAGIC > **01_data_upload_and_volume** を先に実行してください（テーブルとVolumeが必要です）。

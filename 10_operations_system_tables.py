@@ -2,7 +2,6 @@
 # MAGIC %md
 # MAGIC # 10. 運用監視と System Tables によるコスト管理
 # MAGIC
-# MAGIC **進捗: ✅[00-09] → [10] ●**
 # MAGIC
 # MAGIC ### 前提条件
 # MAGIC > 特になし（System Tables はワークスペース全体のメタデータです）。

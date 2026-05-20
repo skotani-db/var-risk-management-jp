@@ -2,7 +2,6 @@
 # MAGIC %md
 # MAGIC # 03. Lakeflow SDP によるデータ品質管理と異常値検出
 # MAGIC
-# MAGIC **進捗: ✅[00] ✅[01] ✅[02] → [03] ●○○○○○○○**
 # MAGIC
 # MAGIC ### 前提条件
 # MAGIC > **01_data_upload_and_volume** を先に実行してください（`market_data` テーブルが必要です）。

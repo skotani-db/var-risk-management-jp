@@ -2,7 +2,6 @@
 # MAGIC %md
 # MAGIC # 02. Auto Loader による増分データ取り込み
 # MAGIC
-# MAGIC **進捗: ✅[00] ✅[01] → [02] ●○○○○○○○○**
 # MAGIC
 # MAGIC ### 前提条件
 # MAGIC > **01_data_upload_and_volume** を先に実行してください（Volume と Delta テーブルが必要です）。

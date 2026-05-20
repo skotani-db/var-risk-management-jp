@@ -2,7 +2,6 @@
 # MAGIC %md
 # MAGIC # 08. VaR 集計とバーゼル規制コンプライアンス
 # MAGIC
-# MAGIC **進捗: ✅[00-07] → [08] ●○○**
 # MAGIC
 # MAGIC ### 前提条件
 # MAGIC > **07_monte_carlo_simulation** を先に実行してください（`monte_carlo_trials` テーブルが必要です）。
