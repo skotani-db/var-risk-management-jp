@@ -127,25 +127,29 @@ print(f"保存完了: {config['database']['tables']['mc_market']}")
 # COMMAND ----------
 
 import mlflow
+import pandas as pd
+from pyspark.sql.functions import pandas_udf
 
 uc_model_name = "{}.{}.{}".format(
     config['database']['catalog'],
     config['database']['schema'],
     config['model']['name']
 )
-model_udf = mlflow.pyfunc.spark_udf(
-    model_uri='models:/{}@champion'.format(uc_model_name),
-    result_type='float',
-    spark=spark,
-    env_manager='local'
-)
+
+# Serverless 環境対応: モデルを直接ロードし pandas UDF で推論
+loaded_model = mlflow.pyfunc.load_model('models:/{}@champion'.format(uc_model_name))
+
+@pandas_udf('float')
+def predict_udf(ticker_series: pd.Series, features_series: pd.Series) -> pd.Series:
+    input_df = pd.DataFrame({'ticker': ticker_series, 'features': features_series})
+    return loaded_model.predict(input_df)
 
 # COMMAND ----------
 
 simulations = (
     spark.read.table(config['database']['tables']['mc_market'])
     .join(spark.createDataFrame(portfolio_df[['ticker']]))
-    .withColumn('return', model_udf(F.struct('ticker', 'features')))
+    .withColumn('return', predict_udf(F.col('ticker'), F.col('features')))
     .drop('features')
 )
 

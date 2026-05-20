@@ -315,15 +315,21 @@ with mlflow.start_run(run_name='value-at-risk') as run:
 
 # COMMAND ----------
 
-# champion モデルを Spark UDF としてロード
-model_udf = mlflow.pyfunc.spark_udf(
-    model_uri='models:/{}@champion'.format(uc_model_name),
-    result_type='float',
-    spark=spark,
-    env_manager='local'
-)
+# champion モデルをロードして推論
+# Serverless 環境では mlflow.pyfunc.spark_udf が制限されるため、
+# pandas UDF またはモデルオブジェクトを直接使用します
+loaded_model = mlflow.pyfunc.load_model('models:/{}@champion'.format(uc_model_name))
 
-prediction_df = features_df.withColumn('predicted', model_udf(F.struct('ticker', 'features')))
+# pandas UDF で分散推論
+from pyspark.sql.functions import pandas_udf
+import pandas as pd
+
+@pandas_udf('float')
+def predict_udf(ticker_series: pd.Series, features_series: pd.Series) -> pd.Series:
+    input_df = pd.DataFrame({'ticker': ticker_series, 'features': features_series})
+    return loaded_model.predict(input_df)
+
+prediction_df = features_df.withColumn('predicted', predict_udf(F.col('ticker'), F.col('features')))
 
 # COMMAND ----------
 
