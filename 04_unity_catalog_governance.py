@@ -266,6 +266,88 @@
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC ## 5. Lakehouse Monitoring（データ品質の継続監視）
+# MAGIC
+# MAGIC **Lakehouse Monitoring** を使うと、テーブルのデータ品質・統計量の推移を
+# MAGIC 自動的にモニタリングできます。
+# MAGIC
+# MAGIC ### リスク管理での活用
+# MAGIC - 市場データの **分布ドリフト**（急にリターン分布が変わった）を自動検知
+# MAGIC - カラムの **NULL率** や **統計量** の推移を時系列で監視
+# MAGIC - 異常が検知されたら **アラート** を発火 → VaR計算前にデータ品質を確認
+# MAGIC
+# MAGIC ### UI操作ポイント
+# MAGIC > 1. カタログ → テーブル選択 → 「品質」タブ → 「モニターを有効化」
+# MAGIC > 2. モニタリング対象のカラムとスケジュールを設定
+# MAGIC > 3. 自動生成されるダッシュボードで統計量の推移を確認
+
+# COMMAND ----------
+
+# market_data テーブルにモニターを作成
+from databricks.sdk import WorkspaceClient
+
+w = WorkspaceClient()
+
+monitor_table = f"{config['database']['catalog']}.{config['database']['schema']}.{config['database']['tables']['stocks']}"
+
+try:
+    monitor = w.quality_monitors.create(
+        table_name=monitor_table,
+        assets_dir=f"/Shared/lakehouse_monitoring/{config['database']['schema']}",
+        output_schema_name=f"{config['database']['catalog']}.{config['database']['schema']}",
+        snapshot={}  # Snapshot profile type
+    )
+    print(f"モニター作成完了: {monitor_table}")
+    print(f"  ダッシュボード: {monitor.dashboard_id}")
+except Exception as e:
+    if "MONITOR_ALREADY_EXISTS" in str(e) or "already exists" in str(e).lower():
+        print(f"モニターは既に存在します: {monitor_table}")
+        print("  → カタログ UI でテーブルの「品質」タブからダッシュボードを確認できます")
+    else:
+        print(f"モニター作成をスキップ: {str(e)[:200]}")
+        print("  → UI から手動で有効化することもできます")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### モニタリングダッシュボードで確認できること
+# MAGIC
+# MAGIC | メトリクス | 説明 | リスク管理での意味 |
+# MAGIC |---|---|---|
+# MAGIC | **行数の推移** | テーブルの行数が時間とともにどう変化するか | データ取り込みの欠落検知 |
+# MAGIC | **NULL率** | 各カラムのNULL率の推移 | データフィードの異常検知 |
+# MAGIC | **統計量** | 平均、標準偏差、最小/最大値の推移 | 市場データの分布ドリフト検知 |
+# MAGIC | **カラム分布** | ヒストグラムの時間変化 | リターン分布の構造変化（テールリスク増加等） |
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## 6. Insights（テーブル利用状況の把握）
+# MAGIC
+# MAGIC Unity Catalog の **Insights** 機能で、テーブルが **誰に・どのくらい使われているか** を確認できます。
+# MAGIC
+# MAGIC ### 確認できる情報
+# MAGIC - **アクセス頻度**: 過去30日間のクエリ回数
+# MAGIC - **利用ユーザー**: どのユーザー/サービスプリンシパルがアクセスしているか
+# MAGIC - **読み取り/書き込み**: READ / WRITE の内訳
+# MAGIC - **最終アクセス日時**: 最後にアクセスされた日時
+# MAGIC
+# MAGIC ### リスク管理での活用
+# MAGIC - 「このリスクデータは誰が利用しているか」を即座に把握 → **影響範囲分析**
+# MAGIC - 使われていないテーブルの特定 → **データ資産の棚卸し**
+# MAGIC - 特定ユーザーの異常なアクセスパターン → **内部不正の検知**
+# MAGIC
+# MAGIC ### UI操作ポイント
+# MAGIC > 1. 左メニュー「カタログ」→ テーブルを選択
+# MAGIC > 2. 「Insights」タブ（または「概要」画面の利用状況セクション）
+# MAGIC > 3. 「過去30日間のクエリ数」「アクセスしたユーザー」「読み取り/書き込み比率」を確認
+# MAGIC >
+# MAGIC > テーブルの「Insights」が表示されない場合は、Unity Catalog のメタストアで
+# MAGIC > System Tables（`system.access.audit`）が有効化されている必要があります。
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ## まとめ
 # MAGIC
 # MAGIC このノートブックでは以下を学びました：
@@ -273,6 +355,8 @@
 # MAGIC - **アクセス制御**: GRANT/REVOKE による権限管理と最小権限の原則
 # MAGIC - **タグ付け**: テーブル・カラムのメタデータ管理とデータ分類
 # MAGIC - **タイムトラベル**: 過去時点のデータへのアクセスと監査対応
+# MAGIC - **Lakehouse Monitoring**: データ品質の継続監視と分布ドリフト検知
+# MAGIC - **Insights**: テーブル利用状況の把握と影響範囲分析
 # MAGIC
 # MAGIC 次のノートブック `05_feature_engineering` では、
 # MAGIC 市場データから **ボラティリティ** と **特徴量** を計算する方法を学びます。
