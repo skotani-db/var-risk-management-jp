@@ -203,11 +203,28 @@ class RiskMLFlowModel(PythonModel):
     def __init__(self, model_df):
         self.weights = dict(zip(model_df.ticker, model_df.weights))
 
+    @staticmethod
+    def _non_linear_features(xs):
+        import numpy as np
+        fs = []
+        for x in xs:
+            fs.append(x)
+            fs.append(np.sign(x) * x ** 2)
+            fs.append(x ** 3)
+            fs.append(np.sign(x) * np.sqrt(abs(x)))
+        return fs
+
+    @staticmethod
+    def _predict_non_linears(ps, fs):
+        s = ps[0]
+        for i, f in enumerate(fs):
+            s = s + ps[i + 1] * f
+        return float(s)
+
     def _predict_record(self, ticker, xs):
-        from utils.var_utils import non_linear_features, predict_non_linears
         ps = self.weights[ticker]
-        fs = non_linear_features(xs)
-        return predict_non_linears(ps, fs)
+        fs = self._non_linear_features(xs)
+        return self._predict_non_linears(ps, fs)
 
     def predict(self, context, model_input):
         predicted = model_input[['ticker','features']].apply(
@@ -265,7 +282,6 @@ with mlflow.start_run(run_name='value-at-risk') as run:
         artifact_path="model",
         python_model=python_model,
         signature=model_signature,
-        code_paths=["utils"],
         registered_model_name=uc_model_name
     )
 

@@ -146,12 +146,12 @@
 
 # MAGIC %sql
 # MAGIC -- テーブルにタグを設定
-# MAGIC ALTER TABLE market_data SET TAGS ('domain' = 'finance', 'data_classification' = 'internal');
+# MAGIC ALTER TABLE market_data SET TAGS ('domain' = 'finance', 'data_classification' = 'private');
 
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC ALTER TABLE market_indicators SET TAGS ('domain' = 'finance', 'data_classification' = 'internal');
+# MAGIC ALTER TABLE market_indicators SET TAGS ('domain' = 'finance', 'data_classification' = 'private');
 
 # COMMAND ----------
 
