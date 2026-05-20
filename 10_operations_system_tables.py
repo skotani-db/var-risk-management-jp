@@ -2,6 +2,12 @@
 # MAGIC %md
 # MAGIC # 10. 運用監視と System Tables によるコスト管理
 # MAGIC
+# MAGIC **進捗: ✅[00-09] → [10] ●**
+# MAGIC
+# MAGIC ### 前提条件
+# MAGIC > 特になし（System Tables はワークスペース全体のメタデータです）。
+# MAGIC > ただし、権限によっては一部のクエリがスキップされます。
+# MAGIC
 # MAGIC ## 実行環境の設定
 # MAGIC - **コンピュート**: Serverless を選択（ノートブック右上「接続」→「Serverless」）
 # MAGIC - **Serverless バージョン**: v5（ノートブック上部「Configuration」→「Serverless version」で設定）

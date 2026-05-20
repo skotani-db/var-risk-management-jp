@@ -2,6 +2,11 @@
 # MAGIC %md
 # MAGIC # 08. VaR 集計とバーゼル規制コンプライアンス
 # MAGIC
+# MAGIC **進捗: ✅[00-07] → [08] ●○○**
+# MAGIC
+# MAGIC ### 前提条件
+# MAGIC > **07_monte_carlo_simulation** を先に実行してください（`monte_carlo_trials` テーブルが必要です）。
+# MAGIC
 # MAGIC ## 実行環境の設定
 # MAGIC - **コンピュート**: Serverless を選択（ノートブック右上「接続」→「Serverless」）
 # MAGIC - **Serverless バージョン**: v5（ノートブック上部「Configuration」→「Serverless version」で設定）
@@ -284,6 +289,14 @@ a1.set_xlabel('日付')
 
 plt.subplots_adjust(wspace=0, hspace=0)
 plt.show()
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## やってみよう
+# MAGIC
+# MAGIC 1. **VaR の信頼水準を変更**: `get_var_udf(F.col('returns'), F.lit(99))` の `99` を `95` に変えて再実行し、VaR95 と VaR99 の違いを確認してください
+# MAGIC 2. **別の国でスライス**: ペルーの業種別リスク寄与度の分析を、メキシコに変えて実行してみましょう（`'PERU'` → `'MEXICO'`）
 
 # COMMAND ----------
 

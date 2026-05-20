@@ -2,6 +2,12 @@
 # MAGIC %md
 # MAGIC # 01. データアップロードと Unity Catalog Volume
 # MAGIC
+# MAGIC **進捗: ✅[00] → [01] ●○○○○○○○○○**
+# MAGIC
+# MAGIC ### 前提条件
+# MAGIC > このノートブックを実行する前に、`config/configure_notebook.py` の
+# MAGIC > `catalog` を自分の環境に合わせて変更してください。
+# MAGIC
 # MAGIC ## 実行環境の設定
 # MAGIC - **コンピュート**: Serverless を選択（ノートブック右上「接続」→「Serverless」）
 # MAGIC - **Serverless バージョン**: v5（ノートブック上部「Configuration」→「Serverless version」で設定）
@@ -304,6 +310,21 @@ spark.createDataFrame(indicators_pdf).coalesce(1).write.mode("overwrite").option
 )
 
 display(spark.read.table(config['database']['tables']['indicators']))
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## やってみよう
+# MAGIC
+# MAGIC 以下の演習で理解を深めましょう：
+# MAGIC
+# MAGIC 1. **Volume を UI から確認**: 左メニュー「カタログ」→ Volume を開き、保存されたCSVファイルを確認してください
+# MAGIC 2. **テーブルのプレビュー**: カタログ UI で `market_data` テーブルをクリックし、「サンプルデータ」タブでデータを確認してください
+# MAGIC 3. **SQL で確認**: 以下のセルのコメントを外して実行し、銘柄ごとの行数を確認してください
+# MAGIC
+# MAGIC ```sql
+# MAGIC -- SELECT ticker, COUNT(*) as cnt FROM market_data GROUP BY ticker ORDER BY cnt DESC
+# MAGIC ```
 
 # COMMAND ----------
 

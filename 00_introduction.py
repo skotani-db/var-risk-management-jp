@@ -2,6 +2,8 @@
 # MAGIC %md
 # MAGIC # VaR（バリュー・アット・リスク）リスク管理 on Databricks
 # MAGIC
+# MAGIC **進捗: [00] ●○○○○○○○○○○**
+# MAGIC
 # MAGIC ## 実行環境の設定
 # MAGIC - **コンピュート**: Serverless を選択（ノートブック右上「接続」→「Serverless」）
 # MAGIC - **Serverless バージョン**: v5（ノートブック上部「Configuration」→「Serverless version」で設定）
@@ -117,6 +119,98 @@ print('期待ショートフォール: {}'.format(round(get_shortfall(simulation
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC ## データフローアーキテクチャ
+# MAGIC
+# MAGIC このデモ全体のデータの流れを示します：
+# MAGIC
+# MAGIC ```
+# MAGIC ┌─────────────┐    ┌──────────────┐    ┌───────────────────┐
+# MAGIC │  CSV ファイル  │───→│ UC Volume    │───→│  Auto Loader      │
+# MAGIC │ (手動/システム) │    │ (raw_data)   │    │  (増分取り込み)     │
+# MAGIC └─────────────┘    └──────────────┘    └────────┬──────────┘
+# MAGIC                                                 │
+# MAGIC                    ┌────────────────────────────┼────────────────────┐
+# MAGIC                    ▼                            ▼                    ▼
+# MAGIC          ┌──────────────┐           ┌────────────────┐    ┌──────────────┐
+# MAGIC          │ market_data  │           │market_indicators│    │ Lakeflow SDP │
+# MAGIC          │ (株式データ)  │           │ (市場指標)      │    │ (品質チェック) │
+# MAGIC          └──────┬───────┘           └───────┬────────┘    └──────────────┘
+# MAGIC                 │                           │
+# MAGIC                 ▼                           ▼
+# MAGIC          ┌──────────────────────────────────────┐
+# MAGIC          │      特徴量エンジニアリング (05)       │
+# MAGIC          │  Window関数 + 時点結合 → volatility   │
+# MAGIC          └──────────────┬───────────────────────┘
+# MAGIC                         │
+# MAGIC                         ▼
+# MAGIC          ┌──────────────────────────────────────┐
+# MAGIC          │     MLflow モデル訓練・登録 (06)       │
+# MAGIC          │  sklearn + pyfunc → UC Model Registry │
+# MAGIC          └──────────────┬───────────────────────┘
+# MAGIC                         │
+# MAGIC                         ▼
+# MAGIC          ┌──────────────────────────────────────┐
+# MAGIC          │   モンテカルロシミュレーション (07)      │
+# MAGIC          │  Spark 分散処理 → mc_trials テーブル   │
+# MAGIC          └──────────────┬───────────────────────┘
+# MAGIC                         │
+# MAGIC                 ┌───────┴───────┐
+# MAGIC                 ▼               ▼
+# MAGIC     ┌────────────────┐  ┌──────────────────┐
+# MAGIC     │ VaR集計 (08)   │  │ Dashboard (09)   │
+# MAGIC     │ バーゼル準拠    │  │ Genie 分析       │
+# MAGIC     └────────────────┘  └──────────────────┘
+# MAGIC ```
+# MAGIC
+# MAGIC ## セットアップ: カタログ名の変更
+# MAGIC
+# MAGIC **重要**: 実行前に `config/configure_notebook.py` を開き、以下の値を自分の環境に変更してください：
+# MAGIC
+# MAGIC ```python
+# MAGIC config = {
+# MAGIC   ...
+# MAGIC   'database': {
+# MAGIC     'catalog': 'shotkotani_demo_ws',  # ← ここを自分のカタログ名に変更
+# MAGIC     'schema': 'var_risk_demo',         # ← 必要に応じて変更
+# MAGIC     ...
+# MAGIC   },
+# MAGIC }
+# MAGIC ```
+# MAGIC
+# MAGIC > **UI操作**: 左メニュー「カタログ」で利用可能なカタログ名を確認できます。
+# MAGIC > カタログ作成権限がない場合は、管理者に依頼してください。
+# MAGIC
+# MAGIC ## 用語集
+# MAGIC
+# MAGIC | Databricks 用語 | 説明 |
+# MAGIC |---|---|
+# MAGIC | **Unity Catalog** | データ・モデル・権限を一元管理する統合ガバナンス基盤 |
+# MAGIC | **カタログ** | Unity Catalog の最上位の名前空間（部門・環境単位） |
+# MAGIC | **スキーマ** | カタログ内のデータベース（プロジェクト単位） |
+# MAGIC | **Volume** | ファイル（CSV, Parquet等）を格納するマネージドストレージ |
+# MAGIC | **Delta テーブル** | ACID トランザクション対応の高性能テーブル形式 |
+# MAGIC | **Auto Loader** | 新規ファイルを自動検出して増分取り込みする機能 |
+# MAGIC | **Lakeflow SDP** | 宣言的データパイプライン（旧 Delta Live Tables） |
+# MAGIC | **Expectations** | DLT/SDP のデータ品質ルール（制約チェック） |
+# MAGIC | **MLflow** | ML ライフサイクル管理（実験追跡、モデル登録） |
+# MAGIC | **Experiment / Run** | MLflow の実験（プロジェクト）と各試行 |
+# MAGIC | **Model Registry** | モデルのバージョン管理・エイリアス（champion等） |
+# MAGIC | **Liquid Clustering** | Delta テーブルの自動最適化機能 |
+# MAGIC | **Genie** | 自然言語でデータに質問できる AI アシスタント |
+# MAGIC | **System Tables** | Databricks の利用状況を記録するメタデータテーブル |
+# MAGIC | **Serverless** | インフラ管理不要のコンピュート（クラスター作成不要） |
+# MAGIC
+# MAGIC ## トラブルシューティング
+# MAGIC
+# MAGIC | エラー | 原因 | 対処法 |
+# MAGIC |---|---|---|
+# MAGIC | `SCHEMA_NOT_FOUND` | カタログ名が環境と不一致 | `config/configure_notebook.py` の `catalog` を確認 |
+# MAGIC | `TABLE_OR_VIEW_NOT_FOUND` | 前のノートブックを未実行 | 依存するノートブックを先に実行 |
+# MAGIC | `INSUFFICIENT_PERMISSIONS` | 権限不足 | 管理者にカタログ/スキーマの権限を依頼 |
+# MAGIC | `ModuleNotFoundError: yaml` | PyYAML 未インストール | Serverless v5 では不要（config は Python dict） |
+# MAGIC | Genie が回答できない | メタデータ不足 | 09 の手順でテーブル/カラムコメントを充実させる |
+# MAGIC | System Tables が見つからない | 未有効化 or 権限不足 | 管理者に system tables の有効化を依頼 |
+# MAGIC
 # MAGIC ## 次のステップ
 # MAGIC 次のノートブック `01_data_upload_and_volume` では、実際のポートフォリオデータを
 # MAGIC Databricks に持ち込む方法を学びます。Unity Catalog の Volume 機能を使って、

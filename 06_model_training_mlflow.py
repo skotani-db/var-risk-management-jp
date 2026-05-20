@@ -2,6 +2,11 @@
 # MAGIC %md
 # MAGIC # 06. モデル訓練と MLflow によるモデル管理
 # MAGIC
+# MAGIC **進捗: ✅[00-05] → [06] ●○○○○**
+# MAGIC
+# MAGIC ### 前提条件
+# MAGIC > **05_feature_engineering** を先に実行してください（`market_volatility` テーブルが必要です）。
+# MAGIC
 # MAGIC ## 実行環境の設定
 # MAGIC - **コンピュート**: Serverless を選択（ノートブック右上「接続」→「Serverless」）
 # MAGIC - **Serverless バージョン**: v5（ノートブック上部「Configuration」→「Serverless version」で設定）

@@ -2,6 +2,11 @@
 # MAGIC %md
 # MAGIC # 05. 特徴量エンジニアリングとボラティリティ計算
 # MAGIC
+# MAGIC **進捗: ✅[00-04] → [05] ●○○○○○**
+# MAGIC
+# MAGIC ### 前提条件
+# MAGIC > **01_data_upload_and_volume** を先に実行してください（`market_data`, `market_indicators` テーブルが必要です）。
+# MAGIC
 # MAGIC ## 実行環境の設定
 # MAGIC - **コンピュート**: Serverless を選択（ノートブック右上「接続」→「Serverless」）
 # MAGIC - **Serverless バージョン**: v5（ノートブック上部「Configuration」→「Serverless version」で設定）
@@ -235,6 +240,14 @@ import matplotlib.pyplot as plt
 from utils.var_viz import plot_correlation_heatmap
 fig_corr, ax_corr = plot_correlation_heatmap(f_cor_pdf, list(market_indicators.values()))
 plt.show()
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## やってみよう
+# MAGIC
+# MAGIC 1. **ボラティリティウィンドウを変更**: `config['monte-carlo']['volatility']` を 90 から 30 に変えて再実行し、ボラティリティの計算結果がどう変わるか確認してください
+# MAGIC 2. **相関行列を読む**: 相関ヒートマップで、S&P500 と最も相関が高い/低い指標はどれですか？その理由を考えてみましょう
 
 # COMMAND ----------
 

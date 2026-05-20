@@ -2,6 +2,11 @@
 # MAGIC %md
 # MAGIC # 07. モンテカルロシミュレーション
 # MAGIC
+# MAGIC **進捗: ✅[00-06] → [07] ●○○○**
+# MAGIC
+# MAGIC ### 前提条件
+# MAGIC > **06_model_training_mlflow** を先に実行してください（MLflow に champion モデルが登録されている必要があります）。
+# MAGIC
 # MAGIC ## 実行環境の設定
 # MAGIC - **コンピュート**: Serverless を選択（ノートブック右上「接続」→「Serverless」）
 # MAGIC - **Serverless バージョン**: v5（ノートブック上部「Configuration」→「Serverless version」で設定）

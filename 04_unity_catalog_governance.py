@@ -2,6 +2,11 @@
 # MAGIC %md
 # MAGIC # 04. Unity Catalog によるデータガバナンス
 # MAGIC
+# MAGIC **進捗: ✅[00-03] → [04] ●○○○○○○**
+# MAGIC
+# MAGIC ### 前提条件
+# MAGIC > **01_data_upload_and_volume** を先に実行してください（テーブルとVolumeが必要です）。
+# MAGIC
 # MAGIC ## 実行環境の設定
 # MAGIC - **コンピュート**: Serverless を選択（ノートブック右上「接続」→「Serverless」）
 # MAGIC - **Serverless バージョン**: v5（ノートブック上部「Configuration」→「Serverless version」で設定）
