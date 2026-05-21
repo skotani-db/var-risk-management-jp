@@ -12,14 +12,14 @@
 # MAGIC - **追加ライブラリ**: 不要
 # MAGIC
 # MAGIC ## このノートブックで学ぶこと
-# MAGIC - **Lakeflow Designer（ビジュアル ETL）**: GUI でドラッグ＆ドロップのパイプライン構築
-# MAGIC - **手元の Excel をデータソースとしてアップロード**: Designer から直接ファイルを取り込み
-# MAGIC - **リスク調整ワークフロー**: ポートフォリオ変更・リスクリミット設定をパイプラインで反映
+# MAGIC - **Lakeflow Designer（ビジュアルデータ準備）**: ドラッグ＆ドロップでデータ変換パイプラインを構築
+# MAGIC - **手元の Excel をデータソースとしてアップロード**: キャンバスにドラッグするだけで取り込み
+# MAGIC - **組み込みオペレータ**: 結合・集計・フィルター・変換をコード不要で設定
 # MAGIC - **コンプライアンスレポート自動生成**: 調整後 VaR と限度額の比較レポート
 # MAGIC
 # MAGIC ## リスク管理でのメリット
 # MAGIC - リスクマネージャーが **Excel で定義した調整** をそのままパイプラインに取り込める
-# MAGIC - Lakeflow Designer の **ビジュアル UI** で非エンジニアでもパイプラインを理解・修正可能
+# MAGIC - Lakeflow Designer の **ビジュアルキャンバス** で非エンジニアでもパイプラインを理解・修正可能
 # MAGIC - 調整→計算→レポートの **エンドツーエンド自動化** で運用ミスを削減
 # MAGIC
 # MAGIC ## ユースケース（PoC シナリオ）
@@ -60,72 +60,187 @@
 # MAGIC
 # MAGIC 手元にダウンロードした Excel を使って、Lakeflow Designer でパイプラインを構築します。
 # MAGIC
-# MAGIC ### Step 1: パイプラインを作成
-# MAGIC 1. 左メニュー「**Data Engineering**」→「**Pipelines**」→「**Create pipeline**」
-# MAGIC 2. パイプライン名: `risk_adjustment_pipeline`
-# MAGIC 3. 「**Lakeflow Designer**」タブを選択（コードではなく GUI モード）
-# MAGIC 4. ターゲットカタログ・スキーマを選択
+# MAGIC ---
 # MAGIC
-# MAGIC ### Step 2: Excel をデータソースとして追加
-# MAGIC 1. キャンバス上で「**+**」→「**Source**」→「**Upload file**」を選択
-# MAGIC 2. 手元の `risk_adjustment_q2_2026.xlsx` を **ドラッグ＆ドロップ**
-# MAGIC 3. 取り込み対象のシートを選択:
-# MAGIC    - まず「**ウェイト調整**」シートを選択 → テーブル名を `weight_adjustments` に設定
-# MAGIC 4. 同様に「**Upload file**」をもう2回追加:
-# MAGIC    - 「**リスクリミット**」シート → テーブル名: `risk_limits`
-# MAGIC    - 「**ストレスシナリオ**」シート → テーブル名: `stress_scenarios`
+# MAGIC ### Step 1: ビジュアルデータ準備を新規作成
+# MAGIC 1. 左サイドバーの「**＋ 新規**」→「**ビジュアルデータ準備**」を選択
+# MAGIC 2. キャンバス（メインのワークスペース）が開き、ウェルカム画面が表示されます
+# MAGIC
+# MAGIC ---
+# MAGIC
+# MAGIC ### Step 2: Excel をデータソースとして追加（ドラッグ＆ドロップ）
+# MAGIC
+# MAGIC 手元の `risk_adjustment_q2_2026.xlsx` を **キャンバスに直接ドラッグ＆ドロップ** します。
+# MAGIC Designer が自動的にワークスペースファイルシステムにアップロードし、ソース演算子を作成します。
+# MAGIC
+# MAGIC > **Excel ファイルの注意点**: 事前にワークスペースで Excel ファイル形式のサポートが有効化されている必要があります。
+# MAGIC
+# MAGIC シートごとにソース演算子が必要なため、以下の3つを作成します:
+# MAGIC
+# MAGIC | ソース演算子名 | 取り込むシート | 説明 |
+# MAGIC |---|---|---|
+# MAGIC | `weight_adjustments` | ウェイト調整 | 銘柄ごとの新ポートフォリオ比率 |
+# MAGIC | `risk_limits` | リスクリミット | 国別・業種別の VaR99 上限値 |
+# MAGIC | `stress_scenarios` | ストレスシナリオ | 極端イベントの想定損失率 |
+# MAGIC
+# MAGIC **演算子の名前変更**: ソース演算子をダブルクリック → 設定ペイン上部のテキストフィールドで名前を編集
+# MAGIC
+# MAGIC > **別の取り込み方法**: ソース構成ペインで「**ファイルからテーブルを作成**」を選択すると、
+# MAGIC > マネージドテーブルとして Unity Catalog に保存されるため、大量データではパフォーマンスが優れます。
+# MAGIC
+# MAGIC ---
 # MAGIC
 # MAGIC ### Step 3: 既存テーブルをソースに追加
-# MAGIC 1. 「**+**」→「**Source**」→「**Catalog table**」を選択
-# MAGIC 2. `monte_carlo_trials`（VaR シミュレーション結果）を選択
+# MAGIC 1. キャンバス上の「**＋**」ボタン → 「**ソース**」を選択
+# MAGIC 2. 「**既存の参照**」をクリック → アセットセレクターが開く
+# MAGIC 3. Unity Catalog から `monte_carlo_trials`（VaR シミュレーション結果）を選択
 # MAGIC
-# MAGIC ### Step 4: 変換ノードを追加
-# MAGIC 1. 「**+**」→「**Transformation**」→「**Join**」
-# MAGIC    - `monte_carlo_trials` と `weight_adjustments` を `ticker` で結合
-# MAGIC 2. 「**+**」→「**Transformation**」→「**Aggregate**」
-# MAGIC    - 結合結果を `country` で集約し、加重リターンの合計を計算
-# MAGIC 3. 「**+**」→「**Transformation**」→「**Join**」
-# MAGIC    - 集約結果と `risk_limits` を `country = target` で結合
+# MAGIC ---
 # MAGIC
-# MAGIC ### Step 5: シンク（出力先）を設定
-# MAGIC 1. 「**+**」→「**Destination**」→「**Delta Table**」
-# MAGIC    - テーブル名: `risk_compliance_report`
+# MAGIC ### Step 4: 変換演算子を追加・接続・設定
 # MAGIC
-# MAGIC ### Step 6: 実行
-# MAGIC 1. 右上の「**Start**」をクリック
-# MAGIC 2. 各ノードの処理件数・品質メトリクスをリアルタイムで確認
+# MAGIC **演算子の追加方法**（3通り）:
+# MAGIC - キャンバス左側の **オペレーターメニュー** からドラッグ＆ドロップ
+# MAGIC - 既存演算子の右側に表示される「**＋**」ボタンをクリック（自動接続）
+# MAGIC - キャンバス上の「**＋**」ボタンから選択
 # MAGIC
-# MAGIC ### パイプライン DAG（完成イメージ）
+# MAGIC **演算子の接続**: 出力ハンドル（演算子右端の小さな円）から次の演算子の入力ハンドル（左端）へドラッグ。
+# MAGIC データは **左から右** へ流れます。結合（Join）など一部の演算子は複数入力を受け付けます。
+# MAGIC
+# MAGIC **演算子の設定**: 演算子をダブルクリック、またはホバー時の鉛筆アイコンをクリック → 設定ペインが開く → 設定後「**適用**」。
+# MAGIC
+# MAGIC #### 4-1. 結合（Join）: Monte Carlo 結果 × ウェイト調整
+# MAGIC 1. `monte_carlo_trials` の右側「**＋**」→「**結合**」を選択
+# MAGIC 2. `weight_adjustments` の出力ハンドルを、この結合演算子の入力にドラッグして接続
+# MAGIC 3. 結合演算子をダブルクリック → 設定ペインで条件を設定:
+# MAGIC    - 結合タイプ: **Inner**
+# MAGIC    - 一致する列: `monte_carlo_trials.ticker` = `weight_adjustments.ticker`
+# MAGIC 4. 「**適用**」をクリック
+# MAGIC
+# MAGIC > **プレビュー**: 演算子を選択すると画面下部の **出力ペイン** で結果を確認できます。
+# MAGIC > 右上のサイドバーアイコンで **データプロファイリング**（行数、値の分布等）も表示されます。
+# MAGIC
+# MAGIC #### 4-2. 変換（Transform）: 加重リターンの計算
+# MAGIC 1. 結合演算子の右側「**＋**」→「**変換**」を選択
+# MAGIC 2. ダブルクリック → 設定ペインで「**列を追加**」:
+# MAGIC    - 列名: `adjusted_weighted_return`
+# MAGIC    - 式: `returns * (new_weight_pct / 100)`
+# MAGIC 3. 「**適用**」をクリック
+# MAGIC
+# MAGIC > **Genie Code 活用**: 式の記述がわからない場合、設定ペイン内の AI アシスタントに
+# MAGIC > 「returns と new_weight_pct から加重リターンを計算する列を追加して」と自然言語で指示できます。
+# MAGIC
+# MAGIC #### 4-3. 集計（Aggregate）: 国別 VaR99 の計算
+# MAGIC 1. 変換演算子の右側「**＋**」→「**集計**」を選択
+# MAGIC 2. ダブルクリック → 設定ペインで:
+# MAGIC    - グループ化列: `country`
+# MAGIC    - 集計関数: `SUM(adjusted_weighted_return)` → 別名: `portfolio_return`
+# MAGIC 3. 「**適用**」をクリック
+# MAGIC
+# MAGIC #### 4-4. 結合（Join）: 集計結果 × リスクリミット
+# MAGIC 1. 集計演算子の右側「**＋**」→「**結合**」を選択
+# MAGIC 2. `risk_limits` の出力ハンドルをこの結合演算子に接続
+# MAGIC 3. 結合条件:
+# MAGIC    - 結合タイプ: **Left**
+# MAGIC    - 一致する列: `country` = `target`
+# MAGIC 4. 「**適用**」をクリック
+# MAGIC
+# MAGIC #### 4-5. 変換（Transform）: BREACH / OK 判定
+# MAGIC 1. 結合演算子の右側「**＋**」→「**変換**」を選択
+# MAGIC 2. 「**列を追加**」:
+# MAGIC    - 列名: `status`
+# MAGIC    - 式: `CASE WHEN var_99 >= limit_value THEN 'OK' ELSE 'BREACH' END`
+# MAGIC 3. 「**適用**」をクリック
+# MAGIC
+# MAGIC ---
+# MAGIC
+# MAGIC ### Step 5: 出力演算子を設定（Unity Catalog に書き込み）
+# MAGIC 1. 最後の変換演算子の右側「**＋**」→「**出力**」を選択
+# MAGIC 2. 出力演算子をダブルクリック → 設定ペインで以下を指定:
+# MAGIC    - **テーブル名**: `risk_compliance_report`
+# MAGIC    - **カタログ・スキーマ**: 現在のデモ環境を選択
+# MAGIC 3. 「**実行**」をクリック → 結果が Delta テーブルに書き込まれます
+# MAGIC
+# MAGIC ---
+# MAGIC
+# MAGIC ### Step 6: スケジュール設定（本番自動化）
+# MAGIC パイプラインを定期実行するには:
+# MAGIC - 上部メニューの「**スケジュール**」ボタンからスケジュールを設定
+# MAGIC - または「**ジョブに追加**」で既存ワークフローのタスクとして組み込み
+# MAGIC
+# MAGIC ---
+# MAGIC
+# MAGIC ### 便利な機能
+# MAGIC | 操作 | 方法 |
+# MAGIC |---|---|
+# MAGIC | 演算子の名前変更 | 設定ペイン上部のテキストフィールドを編集 |
+# MAGIC | 結果プレビュー | 演算子を選択 → 画面下部の出力ペインに表示 |
+# MAGIC | 行数制御 | 出力ペインで「制限モード」（先頭N行）/ 「最大モード」（全行）を切替 |
+# MAGIC | データプロファイリング | 出力ペイン右上のサイドバーアイコンをクリック |
+# MAGIC | Genie Code（AI支援） | 設定ペイン内でプロンプトを入力して変換を自然言語で生成 |
+# MAGIC | 自動レイアウト | ヘッダーの水平 DAG アイコンをクリック |
+# MAGIC | フィット表示 | ヘッダーの拡大アイコンで全演算子をキャンバスに収める |
+# MAGIC | 元に戻す/やり直し | `Cmd+Z` / `Cmd+Shift+Z` |
+# MAGIC | 演算子コピー | ホバー時のコピーアイコン or `Cmd+C` |
+# MAGIC
+# MAGIC ### 利用可能な組み込み演算子（参考）
+# MAGIC | カテゴリ | 演算子 | 概要 |
+# MAGIC |---|---|---|
+# MAGIC | ソース | ソース | テーブル参照、ファイルアップロード、Google Drive / SharePoint 連携 |
+# MAGIC | 変換 | 結合（Join） | 一致する列で2テーブルをリンク |
+# MAGIC | 変換 | 集計（Aggregate） | グループ化 + 集計関数（AVG, COUNT, MAX, SUM 等） |
+# MAGIC | 変換 | フィルター | 条件ビルダーで行を絞り込み |
+# MAGIC | 変換 | 変換（Transform） | 列の選択・追加・名前変更 |
+# MAGIC | 変換 | ソート | 1つ以上の列で昇順/降順に並べ替え |
+# MAGIC | 変換 | ピボット | 行↔列方向にデータを整形 |
+# MAGIC | 変換 | 組み合わせ（Combine） | Union / Intersect / Except |
+# MAGIC | 変換 | 制限（Limit） | 最大行数を制限 |
+# MAGIC | 変換 | SQL | カスタム SQL SELECT 文を実行 |
+# MAGIC | 変換 | Python | カスタム PySpark 処理を実行 |
+# MAGIC | AI | ai_summarize, ai_classify 等 | 感情分析・テキスト分類・要約・翻訳など10種の AI 関数 |
+# MAGIC | 出力 | 出力 | Unity Catalog のテーブルに結果を書き込み |
+# MAGIC | 整理 | 注記 / グループ | Markdown メモの追加、演算子の視覚的グループ化 |
+# MAGIC
+# MAGIC ---
+# MAGIC
+# MAGIC ### 完成イメージ（DAG）
 # MAGIC ```
 # MAGIC ┌──────────────────────┐  ┌──────────────────────┐  ┌─────────────────────┐
 # MAGIC │  weight_adjustments  │  │  monte_carlo_trials  │  │    risk_limits       │
-# MAGIC │  (Excel アップロード) │  │  (既存テーブル)       │  │  (Excel アップロード) │
+# MAGIC │  (Excel D&D)         │  │  (既存テーブル参照)   │  │  (Excel D&D)         │
 # MAGIC └────────┬─────────────┘  └──────────┬───────────┘  └──────────┬──────────┘
 # MAGIC          │                           │                          │
 # MAGIC          └──────────┐   ┌────────────┘                          │
 # MAGIC                     ▼   ▼                                       │
 # MAGIC              ┌──────────────────┐                               │
-# MAGIC              │   Join (ticker)  │                               │
-# MAGIC              │  加重リターン再計算│                               │
+# MAGIC              │  結合 (ticker)   │                               │
 # MAGIC              └────────┬─────────┘                               │
-# MAGIC                       │                                         │
 # MAGIC                       ▼                                         │
 # MAGIC              ┌──────────────────┐                               │
-# MAGIC              │  Aggregate       │                               │
-# MAGIC              │  国別VaR99計算   │                               │
+# MAGIC              │  変換            │                               │
+# MAGIC              │  加重リターン計算 │                               │
+# MAGIC              └────────┬─────────┘                               │
+# MAGIC                       ▼                                         │
+# MAGIC              ┌──────────────────┐                               │
+# MAGIC              │  集計 (country)  │                               │
+# MAGIC              │  国別VaR99       │                               │
 # MAGIC              └────────┬─────────┘                               │
 # MAGIC                       │                                         │
 # MAGIC                       └─────────────────┐   ┌──────────────────┘
 # MAGIC                                         ▼   ▼
 # MAGIC                                  ┌──────────────────┐
-# MAGIC                                  │  Join (country)  │
-# MAGIC                                  │  リミット突合    │
+# MAGIC                                  │  結合 (country=  │
+# MAGIC                                  │       target)    │
 # MAGIC                                  └────────┬─────────┘
-# MAGIC                                           │
+# MAGIC                                           ▼
+# MAGIC                                  ┌──────────────────┐
+# MAGIC                                  │  変換            │
+# MAGIC                                  │  BREACH/OK 判定  │
+# MAGIC                                  └────────┬─────────┘
 # MAGIC                                           ▼
 # MAGIC                                  ┌────────────────────────┐
-# MAGIC                                  │ risk_compliance_report │
-# MAGIC                                  │ (Delta テーブル)       │
+# MAGIC                                  │  出力                  │
+# MAGIC                                  │  risk_compliance_report│
 # MAGIC                                  └────────────────────────┘
 # MAGIC ```
 
@@ -467,12 +582,14 @@ print("  - stress_test_report（ストレステスト結果）")
 # MAGIC
 # MAGIC | 観点 | コード版（セクション3） | Lakeflow Designer（セクション2） |
 # MAGIC |---|---|---|
-# MAGIC | 構築者 | エンジニア | 非エンジニアでも可 |
-# MAGIC | データソース追加 | コード変更が必要 | Excel をドラッグ＆ドロップ |
-# MAGIC | パイプラインの可視化 | コードを読む必要がある | DAG が自動表示 |
-# MAGIC | 品質ルール | `@dlt.expect` をコーディング | GUI でチェックボックス設定 |
-# MAGIC | スケジュール実行 | ジョブ設定が必要 | UI からワンクリック |
-# MAGIC | Excel 更新時の再実行 | ファイルの再アップロード＋再実行 | Excel を差し替えて「Start」 |
+# MAGIC | 構築者 | エンジニア | アナリスト・非エンジニアでも可 |
+# MAGIC | データソース追加 | コード変更が必要 | Excel をキャンバスにドラッグ＆ドロップ |
+# MAGIC | パイプラインの可視化 | コードを読む必要がある | DAG が自動表示、自動レイアウト |
+# MAGIC | 変換の作成 | PySpark / SQL を記述 | 組み込み演算子を選択、または Genie Code に自然言語で指示 |
+# MAGIC | 中間結果の確認 | `display()` でセルごとに実行 | 出力ペインでリアルタイムプレビュー＋データプロファイリング |
+# MAGIC | スケジュール実行 | ジョブ設定が必要 | 「スケジュール」ボタンまたは「ジョブに追加」 |
+# MAGIC | Excel 更新時の再実行 | ファイルの再アップロード＋再実行 | Excel を差し替えて「実行」 |
+# MAGIC | Git 管理 | `.py` ファイル | `.designer.ipynb` ファイルとして Git 連携可能 |
 
 # COMMAND ----------
 
