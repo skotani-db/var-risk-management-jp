@@ -9,7 +9,7 @@
 # MAGIC ## 実行環境の設定
 # MAGIC - **コンピュート**: Serverless を選択（ノートブック右上「接続」→「Serverless」）
 # MAGIC - **Serverless バージョン**: v5（ノートブック上部「Configuration」→「Serverless version」で設定）
-# MAGIC - **追加ライブラリ**: `openpyxl`（Excel読み書き用、セットアップセルで自動インストール）
+# MAGIC - **追加ライブラリ**: `openpyxl`（Excel 読み込み用、セットアップセルで自動インストール）
 # MAGIC
 # MAGIC ## このノートブックで学ぶこと
 # MAGIC - **Lakeflow Designer（ビジュアル ETL）**: GUI でドラッグ＆ドロップのパイプライン構築
@@ -55,151 +55,22 @@ print(f"openpyxl version: {openpyxl.__version__}")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 1. リスク調整 Excel ファイルの作成
+# MAGIC ## 1. Excel ファイルを Volume にアップロード
 # MAGIC
-# MAGIC 実務では、リスクマネージャーが Excel で以下を作成し、メールや共有フォルダで連携します：
-# MAGIC - **Sheet 1: ウェイト調整** — 銘柄ごとの新しいポートフォリオ比率
-# MAGIC - **Sheet 2: リスクリミット** — 国別・業種別の VaR 上限値
-# MAGIC - **Sheet 3: ストレスシナリオ** — 特定イベントの想定損失率
-# MAGIC
-# MAGIC ここではサンプル Excel をプログラムで生成しますが、
-# MAGIC 実際の PoC では **お客様が用意した Excel をそのままアップロード** できます。
-
-# COMMAND ----------
-
-import pandas as pd
-import numpy as np
-from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from openpyxl.utils.dataframe import dataframe_to_rows
-
-np.random.seed(42)
-
-# --- Sheet 1: ウェイト調整 ---
-weight_data = []
-for _, row in portfolio_df.iterrows():
-    old_weight = row['weight']
-    # リバランス: Banks を増やし、Media/Travel を減らす
-    if row['industry'] == 'Banks':
-        new_weight = old_weight * 1.3
-    elif row['industry'] in ['Media', 'Travel & Leisure']:
-        new_weight = old_weight * 0.6
-    else:
-        new_weight = old_weight * np.random.uniform(0.9, 1.1)
-    weight_data.append({
-        'ティッカー': row['ticker'],
-        '企業名': row['company'],
-        '国': row['country'],
-        '業種': row['industry'],
-        '現行ウェイト(%)': round(old_weight * 100, 2),
-        '新ウェイト(%)': round(new_weight * 100, 2),
-        '変更理由': 'リバランス' if abs(new_weight - old_weight) > 0.005 else '据え置き'
-    })
-weight_pdf = pd.DataFrame(weight_data)
-
-# 新ウェイトを正規化（合計100%）
-total = weight_pdf['新ウェイト(%)'].sum()
-weight_pdf['新ウェイト(%)'] = round(weight_pdf['新ウェイト(%)'] / total * 100, 2)
-
-# --- Sheet 2: リスクリミット ---
-limit_data = [
-    {'対象': 'ポートフォリオ全体', 'リミット種別': 'VaR99 (日次)', '上限値': -0.025, '承認者': '山田太郎 (CRO)', '有効開始日': '2026-04-01'},
-    {'対象': 'CHILE', 'リミット種別': 'VaR99 (国別)', '上限値': -0.035, '承認者': '山田太郎 (CRO)', '有効開始日': '2026-04-01'},
-    {'対象': 'COLOMBIA', 'リミット種別': 'VaR99 (国別)', '上限値': -0.040, '承認者': '山田太郎 (CRO)', '有効開始日': '2026-04-01'},
-    {'対象': 'MEXICO', 'リミット種別': 'VaR99 (国別)', '上限値': -0.030, '承認者': '山田太郎 (CRO)', '有効開始日': '2026-04-01'},
-    {'対象': 'PANAMA', 'リミット種別': 'VaR99 (国別)', '上限値': -0.045, '承認者': '山田太郎 (CRO)', '有効開始日': '2026-04-01'},
-    {'対象': 'PERU', 'リミット種別': 'VaR99 (国別)', '上限値': -0.038, '承認者': '山田太郎 (CRO)', '有効開始日': '2026-04-01'},
-    {'対象': 'Banks', 'リミット種別': 'VaR99 (業種別)', '上限値': -0.030, '承認者': '鈴木花子 (リスク部長)', '有効開始日': '2026-04-01'},
-    {'対象': 'Oil & Gas Producers', 'リミット種別': 'VaR99 (業種別)', '上限値': -0.050, '承認者': '鈴木花子 (リスク部長)', '有効開始日': '2026-04-01'},
-    {'対象': 'Mining', 'リミット種別': 'VaR99 (業種別)', '上限値': -0.055, '承認者': '鈴木花子 (リスク部長)', '有効開始日': '2026-04-01'},
-]
-limit_pdf = pd.DataFrame(limit_data)
-
-# --- Sheet 3: ストレスシナリオ ---
-stress_data = [
-    {'シナリオ名': '新興国通貨危機', '対象国': 'ALL', '株価ショック(%)': -15.0, 'ボラティリティ倍率': 2.5, '発生確率': '低'},
-    {'シナリオ名': '米金利急騰', '対象国': 'ALL', '株価ショック(%)': -8.0, 'ボラティリティ倍率': 1.8, '発生確率': '中'},
-    {'シナリオ名': 'チリ政情不安', '対象国': 'CHILE', '株価ショック(%)': -20.0, 'ボラティリティ倍率': 3.0, '発生確率': '低'},
-    {'シナリオ名': 'メキシコ関税強化', '対象国': 'MEXICO', '株価ショック(%)': -12.0, 'ボラティリティ倍率': 2.0, '発生確率': '中'},
-    {'シナリオ名': '原油価格暴落', '対象国': 'COLOMBIA', '株価ショック(%)': -18.0, 'ボラティリティ倍率': 2.8, '発生確率': '低'},
-]
-stress_pdf = pd.DataFrame(stress_data)
-
-print(f"ウェイト調整: {len(weight_pdf)}銘柄")
-print(f"リスクリミット: {len(limit_pdf)}件")
-print(f"ストレスシナリオ: {len(stress_pdf)}件")
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ### Excel ファイルを書式付きで生成
-# MAGIC
-# MAGIC 実務で使われるような見やすいフォーマットで Excel を作成します。
-
-# COMMAND ----------
-
-def style_excel_sheet(ws, header_fill, df):
-    """Excel シートにヘッダー書式を適用"""
-    thin_border = Border(
-        left=Side(style='thin'), right=Side(style='thin'),
-        top=Side(style='thin'), bottom=Side(style='thin')
-    )
-    header_font = Font(bold=True, color="FFFFFF", size=11)
-
-    for col_idx in range(1, len(df.columns) + 1):
-        cell = ws.cell(row=1, column=col_idx)
-        cell.font = header_font
-        cell.fill = header_fill
-        cell.alignment = Alignment(horizontal='center')
-
-    for row in ws.iter_rows(min_row=1, max_row=ws.max_row, max_col=len(df.columns)):
-        for cell in row:
-            cell.border = thin_border
-
-    for col in ws.columns:
-        max_len = max(len(str(cell.value or '')) for cell in col) + 4
-        ws.column_dimensions[col[0].column_letter].width = max_len
-
-
-# Excel ファイル作成
-excel_path = "/tmp/risk_adjustment_q2_2026.xlsx"
-wb = Workbook()
-
-# Sheet 1: ウェイト調整
-ws1 = wb.active
-ws1.title = "ウェイト調整"
-for r in dataframe_to_rows(weight_pdf, index=False, header=True):
-    ws1.append(r)
-style_excel_sheet(ws1, PatternFill(start_color="1F4E79", fill_type="solid"), weight_pdf)
-
-# Sheet 2: リスクリミット
-ws2 = wb.create_sheet("リスクリミット")
-for r in dataframe_to_rows(limit_pdf, index=False, header=True):
-    ws2.append(r)
-style_excel_sheet(ws2, PatternFill(start_color="C00000", fill_type="solid"), limit_pdf)
-
-# Sheet 3: ストレスシナリオ
-ws3 = wb.create_sheet("ストレスシナリオ")
-for r in dataframe_to_rows(stress_pdf, index=False, header=True):
-    ws3.append(r)
-style_excel_sheet(ws3, PatternFill(start_color="BF8F00", fill_type="solid"), stress_pdf)
-
-wb.save(excel_path)
-print(f"Excel 生成完了: {excel_path}")
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## 2. Excel を Volume にアップロード
-# MAGIC
-# MAGIC 生成した Excel ファイルを Unity Catalog Volume にアップロードします。
+# MAGIC `data/risk_adjustment_q2_2026.xlsx` はリスクマネージャーが作成した調整ファイルです。
+# MAGIC 3つのシートで構成されています：
+# MAGIC - **ウェイト調整** — 銘柄ごとの新しいポートフォリオ比率
+# MAGIC - **リスクリミット** — 国別・業種別の VaR 上限値
+# MAGIC - **ストレスシナリオ** — 特定イベントの想定損失率
 # MAGIC
 # MAGIC ### 実際の PoC では
+# MAGIC > お客様が手元で作成した Excel をそのまま Volume にアップロードできます：
 # MAGIC > 1. 左メニュー「**カタログ**」→ Volume を開く
 # MAGIC > 2. 「**アップロード**」ボタンをクリック
-# MAGIC > 3. リスクマネージャーが作成した **Excel ファイルをドラッグ＆ドロップ**
+# MAGIC > 3. **Excel ファイルをドラッグ＆ドロップ**
 # MAGIC >
-# MAGIC > このデモではプログラム的にアップロードしますが、UI からの手動アップロードも全く同じ結果になります。
+# MAGIC > ここではリポジトリ同梱の Excel をプログラム的にコピーしますが、
+# MAGIC > UI からの手動アップロードも全く同じ結果になります。
 
 # COMMAND ----------
 
@@ -209,73 +80,64 @@ volume_path = "/Volumes/{}/{}/{}".format(
     config['database']['volume']
 )
 
-# Volume に Excel をコピー
+# data/ フォルダの Excel を Volume にコピー
 upload_path = f"{volume_path}/risk_adjustments"
 dbutils.fs.mkdirs(upload_path)
-dbutils.fs.cp(f"file:{excel_path}", f"{upload_path}/risk_adjustment_q2_2026.xlsx")
+dbutils.fs.cp(
+    "file:/Workspace/" + dbutils.notebook.entry_point.getDbutils().notebook().getContext().notebookPath().get().rsplit("/", 1)[0] + "/data/risk_adjustment_q2_2026.xlsx",
+    f"{upload_path}/risk_adjustment_q2_2026.xlsx"
+)
 print(f"アップロード完了: {upload_path}/risk_adjustment_q2_2026.xlsx")
 
-# Volume 内のファイルを確認
 display(dbutils.fs.ls(upload_path))
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 3. Excel データの読み込みと Delta テーブル化
+# MAGIC ## 2. Excel データの読み込みと Delta テーブル化
 # MAGIC
 # MAGIC Volume にアップロードされた Excel を pandas で読み込み、Delta テーブルとして保存します。
 # MAGIC これが Lakeflow Designer パイプラインのソースデータになります。
 
 # COMMAND ----------
 
-# Volume 上の Excel を読み込み（ローカルパスに変換）
-excel_volume_path = f"{volume_path}/risk_adjustments/risk_adjustment_q2_2026.xlsx".replace("/Volumes/", "/Volumes/")
+import pandas as pd
 
-# 各シートを読み込み
-df_weights = pd.read_excel(excel_volume_path, sheet_name="ウェイト調整", engine="openpyxl")
-df_limits = pd.read_excel(excel_volume_path, sheet_name="リスクリミット", engine="openpyxl")
-df_stress = pd.read_excel(excel_volume_path, sheet_name="ストレスシナリオ", engine="openpyxl")
+# Volume 上の Excel を読み込み
+excel_path = f"{volume_path}/risk_adjustments/risk_adjustment_q2_2026.xlsx"
 
-print("=== ウェイト調整 ===")
+df_weights = pd.read_excel(excel_path, sheet_name="ウェイト調整", engine="openpyxl")
+df_limits = pd.read_excel(excel_path, sheet_name="リスクリミット", engine="openpyxl")
+df_stress = pd.read_excel(excel_path, sheet_name="ストレスシナリオ", engine="openpyxl")
+
+print(f"ウェイト調整: {len(df_weights)} 銘柄")
+print(f"リスクリミット: {len(df_limits)} 件")
+print(f"ストレスシナリオ: {len(df_stress)} 件")
+
+# COMMAND ----------
+
 display(spark.createDataFrame(df_weights))
 
 # COMMAND ----------
 
-print("=== リスクリミット ===")
 display(spark.createDataFrame(df_limits))
 
 # COMMAND ----------
 
-print("=== ストレスシナリオ ===")
 display(spark.createDataFrame(df_stress))
 
 # COMMAND ----------
 
 # Delta テーブルとして保存
-(
-    spark.createDataFrame(df_weights)
-    .write.format("delta").mode("overwrite")
-    .saveAsTable("weight_adjustments")
-)
-
-(
-    spark.createDataFrame(df_limits)
-    .write.format("delta").mode("overwrite")
-    .saveAsTable("risk_limits")
-)
-
-(
-    spark.createDataFrame(df_stress)
-    .write.format("delta").mode("overwrite")
-    .saveAsTable("stress_scenarios")
-)
+for name, df in [("weight_adjustments", df_weights), ("risk_limits", df_limits), ("stress_scenarios", df_stress)]:
+    spark.createDataFrame(df).write.format("delta").mode("overwrite").saveAsTable(name)
 
 print("Delta テーブル作成完了: weight_adjustments, risk_limits, stress_scenarios")
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 4. Lakeflow Designer でパイプラインを構築
+# MAGIC ## 3. Lakeflow Designer でパイプラインを構築
 # MAGIC
 # MAGIC ここからが **Lakeflow Designer** の出番です。
 # MAGIC ビジュアル UI でドラッグ＆ドロップしながら、Excel データと VaR 結果を結合するパイプラインを作成します。
@@ -295,11 +157,11 @@ print("Delta テーブル作成完了: weight_adjustments, risk_limits, stress_s
 # MAGIC
 # MAGIC #### Step 3: 変換ノードを追加
 # MAGIC 1. 「**Transformations**」から「**Join**」をドラッグ
-# MAGIC    - `monte_carlo_trials` と `weight_adjustments` を `ticker = ティッカー` で結合
+# MAGIC    - `monte_carlo_trials` と `weight_adjustments` を `ticker` で結合
 # MAGIC 2. 「**Transformations**」から「**Aggregate**」をドラッグ
 # MAGIC    - 結合結果を国別に集約し、新ウェイトで加重平均 VaR を計算
 # MAGIC 3. 「**Transformations**」から「**Join**」をもう1つドラッグ
-# MAGIC    - 集約結果と `risk_limits` を `国 = 対象` で結合
+# MAGIC    - 集約結果と `risk_limits` を `country = target` で結合
 # MAGIC
 # MAGIC #### Step 4: シンクを設定
 # MAGIC 1. 「**Destinations**」から「**Delta Table**」をドラッグ
@@ -318,7 +180,7 @@ print("Delta テーブル作成完了: weight_adjustments, risk_limits, stress_s
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 5. パイプラインロジック（コード版）
+# MAGIC ## 4. パイプラインロジック（コード版）
 # MAGIC
 # MAGIC Lakeflow Designer の各ノードが行う処理を、Spark SQL / PySpark で再現します。
 
@@ -326,14 +188,9 @@ print("Delta テーブル作成完了: weight_adjustments, risk_limits, stress_s
 
 from pyspark.sql import functions as F
 
-# --- Step A: ウェイト調整テーブルを英語カラム名に正規化 ---
+# ウェイト調整テーブルを読み込み、新ウェイトを小数に変換
 adjustments = (
     spark.read.table("weight_adjustments")
-    .withColumnRenamed("ティッカー", "ticker")
-    .withColumnRenamed("国", "country")
-    .withColumnRenamed("業種", "industry")
-    .withColumnRenamed("現行ウェイト(%)", "old_weight_pct")
-    .withColumnRenamed("新ウェイト(%)", "new_weight_pct")
     .withColumn("new_weight", F.col("new_weight_pct") / 100)
 )
 
@@ -342,7 +199,7 @@ display(adjustments.select("ticker", "country", "industry", "old_weight_pct", "n
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### 5-1. 調整後ウェイトでの加重リターン再計算
+# MAGIC ### 4-1. 調整後ウェイトでの加重リターン再計算
 # MAGIC
 # MAGIC Monte Carlo シミュレーション結果に新しいウェイトを適用し、
 # MAGIC ポートフォリオ全体のリターン分布を再計算します。
@@ -364,23 +221,15 @@ print(f"結合結果: {adjusted_simulation.count()} 行")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### 5-2. 調整後 VaR の計算（国別）
+# MAGIC ### 4-2. 調整後 VaR の計算（国別）
 
 # COMMAND ----------
-
-from pyspark.ml.stat import Summarizer
-from pyspark.sql.column import Column
 
 # 国別に調整後 VaR99 を計算
 adjusted_var_by_country = (
     adjusted_simulation
     .groupBy("date", "country")
-    .agg(
-        Summarizer.mean(Summarizer.metrics("mean")
-            .summary(F.collect_list("adjusted_weighted_return")))
-        if False else
-        F.sum("adjusted_weighted_return").alias("portfolio_return")
-    )
+    .agg(F.sum("adjusted_weighted_return").alias("portfolio_return"))
     .groupBy("country")
     .agg(
         F.expr("percentile(portfolio_return, 0.01)").alias("var_99"),
@@ -396,20 +245,16 @@ display(adjusted_var_by_country)
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### 5-3. リスクリミットとの突合（コンプライアンスチェック）
+# MAGIC ### 4-3. リスクリミットとの突合（コンプライアンスチェック）
 # MAGIC
 # MAGIC 調整後 VaR が設定されたリミットを超過していないかチェックします。
 
 # COMMAND ----------
 
-# リスクリミットを読み込み
+# リスクリミットを読み込み（国別のみ抽出）
 limits = (
     spark.read.table("risk_limits")
-    .withColumnRenamed("対象", "target")
-    .withColumnRenamed("リミット種別", "limit_type")
-    .withColumnRenamed("上限値", "limit_value")
-    .withColumnRenamed("承認者", "approver")
-    .filter(F.col("limit_type") == "VaR99 (国別)")
+    .filter(F.col("limit_type") == "VaR99_country")
 )
 
 # 国別 VaR とリミットを結合
@@ -433,7 +278,7 @@ display(compliance_check)
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 6. コンプライアンスレポートの可視化
+# MAGIC ## 5. コンプライアンスレポートの可視化
 
 # COMMAND ----------
 
@@ -478,7 +323,7 @@ plt.show()
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 7. ストレステスト（Excel シナリオ適用）
+# MAGIC ## 6. ストレステスト（Excel シナリオ適用）
 # MAGIC
 # MAGIC アップロードした Excel のストレスシナリオを適用し、
 # MAGIC 極端な市場環境での損失を推定します。
@@ -490,12 +335,11 @@ stress_scenarios = spark.read.table("stress_scenarios").toPandas()
 # 各シナリオのストレス VaR を推定
 stress_results = []
 for _, scenario in stress_scenarios.iterrows():
-    target_country = scenario['対象国']
-    shock = scenario['株価ショック(%)'] / 100
-    vol_mult = scenario['ボラティリティ倍率']
+    target_country = scenario['target_country']
+    shock = scenario['price_shock_pct'] / 100
+    vol_mult = scenario['volatility_multiplier']
 
     if target_country == 'ALL':
-        # 全体にショック適用
         stressed_var = report_df['var_99'].mean() * vol_mult + shock
     else:
         country_var = report_df[report_df['country'] == target_country]['var_99']
@@ -505,12 +349,12 @@ for _, scenario in stress_scenarios.iterrows():
             stressed_var = shock
 
     stress_results.append({
-        'シナリオ': scenario['シナリオ名'],
-        '対象': target_country,
-        'ストレスVaR': round(stressed_var, 4),
-        '通常VaR': round(report_df['var_99'].mean(), 4),
-        '追加損失': round(stressed_var - report_df['var_99'].mean(), 4),
-        '発生確率': scenario['発生確率']
+        'scenario': scenario['scenario_name'],
+        'target': target_country,
+        'stressed_var': round(stressed_var, 4),
+        'normal_var': round(report_df['var_99'].mean(), 4),
+        'additional_loss': round(stressed_var - report_df['var_99'].mean(), 4),
+        'probability': scenario['probability']
     })
 
 stress_result_df = pd.DataFrame(stress_results)
@@ -519,15 +363,15 @@ display(spark.createDataFrame(stress_result_df))
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 8. ストレステスト結果の可視化
+# MAGIC ## 7. ストレステスト結果の可視化
 
 # COMMAND ----------
 
 fig, ax = plt.subplots(figsize=(14, 7))
 
-scenarios = stress_result_df['シナリオ'].tolist()
-normal_var = stress_result_df['通常VaR'].tolist()
-stress_var = stress_result_df['ストレスVaR'].tolist()
+scenarios = stress_result_df['scenario'].tolist()
+normal_var = stress_result_df['normal_var'].tolist()
+stress_var = stress_result_df['stressed_var'].tolist()
 
 x = np.arange(len(scenarios))
 width = 0.35
@@ -548,7 +392,7 @@ plt.show()
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 9. レポートを Delta テーブルとして保存
+# MAGIC ## 8. レポートを Delta テーブルとして保存
 # MAGIC
 # MAGIC 最終レポートを Delta テーブルに保存し、AI/BI Dashboard や Genie で活用できるようにします。
 
@@ -584,7 +428,7 @@ print("  - stress_test_report（ストレステスト結果）")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 10. Lakeflow Designer パイプライン定義（参考）
+# MAGIC ## 9. Lakeflow Designer パイプライン定義（参考）
 # MAGIC
 # MAGIC 上記のコードロジックを Lakeflow Designer で構築すると、以下のようなパイプライン DAG になります：
 # MAGIC
@@ -636,14 +480,14 @@ print("  - stress_test_report（ストレステスト結果）")
 # MAGIC **わからないことがあれば、ノートブック右側の Genie Code（AI アシスタント）に質問しながら進めてください。**
 # MAGIC
 # MAGIC 1. **Excel を修正してリスクリミットを変更**:
-# MAGIC    - `risk_adjustment_q2_2026.xlsx` をダウンロードし、リスクリミットの上限値を変更
+# MAGIC    - Volume から `risk_adjustment_q2_2026.xlsx` をダウンロードし、リスクリミットの上限値を変更
 # MAGIC    - 変更後の Excel を Volume に再アップロードし、このノートブックを再実行
 # MAGIC    - BREACH / OK の判定がどう変わるか確認
 # MAGIC
 # MAGIC 2. **Lakeflow Designer でパイプラインを構築**:
 # MAGIC    - 左メニュー「Data Engineering」→「Pipelines」→「Create pipeline」
-# MAGIC    - セクション 4 の手順に従い、ビジュアルパイプラインを構築
-# MAGIC    - コード版（セクション 5）と同じ結果が得られるか比較
+# MAGIC    - セクション 3 の手順に従い、ビジュアルパイプラインを構築
+# MAGIC    - コード版（セクション 4）と同じ結果が得られるか比較
 # MAGIC
 # MAGIC 3. **ストレスシナリオを追加**:
 # MAGIC    - Excel の「ストレスシナリオ」シートに独自のシナリオを追加

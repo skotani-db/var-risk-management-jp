@@ -49,7 +49,8 @@ var-risk-management-jp/
 │   └── indicators.json             # 市場指標定義
 ├── data/
 │   ├── sample_stocks.csv           # サンプル株式データ
-│   └── sample_indicators.csv       # サンプル市場指標
+│   ├── sample_indicators.csv       # サンプル市場指標
+│   └── risk_adjustment_q2_2026.xlsx # リスク調整Excel（ウェイト/リミット/ストレス）
 ├── utils/
 │   ├── var_utils.py                # ユーティリティ関数
 │   ├── var_udf.py                  # Spark UDF
