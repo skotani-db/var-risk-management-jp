@@ -13,6 +13,34 @@ warnings.filterwarnings("ignore")
 
 # COMMAND ----------
 
+# matplotlib 日本語フォント設定（文字化け防止）
+import matplotlib.pyplot as plt
+import subprocess, os
+
+# IPAexGothic フォントをインストール（Serverless 環境対応）
+try:
+  import matplotlib.font_manager as fm
+  # pip で japanize-matplotlib が使えない場合のフォールバック
+  subprocess.run(["pip", "install", "-q", "japanize-matplotlib"], check=True, capture_output=True)
+  import japanize_matplotlib
+except Exception:
+  # japanize-matplotlib が入らない場合は IPAexGothic を直接取得
+  try:
+    font_url = "https://moji.or.jp/wp-content/ipafont/IPAexfont/IPAexfont00401.zip"
+    font_dir = "/tmp/fonts"
+    os.makedirs(font_dir, exist_ok=True)
+    subprocess.run(["wget", "-q", "-O", f"{font_dir}/ipafont.zip", font_url], check=True, capture_output=True)
+    subprocess.run(["unzip", "-o", "-q", f"{font_dir}/ipafont.zip", "-d", font_dir], check=True, capture_output=True)
+    font_path = os.path.join(font_dir, "IPAexfont00401", "ipaexg.ttf")
+    fm.fontManager.addfont(font_path)
+    plt.rcParams['font.family'] = 'IPAexGothic'
+  except Exception:
+    pass  # フォントが取得できない場合はデフォルトのまま
+
+plt.rcParams['axes.unicode_minus'] = False  # マイナス記号の文字化け防止
+
+# COMMAND ----------
+
 # Serverless v5 では PyYAML が未インストールのため、Python dict で設定を定義
 # 変更したい場合はここを編集してください
 config = {

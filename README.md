@@ -58,12 +58,37 @@ var-risk-management-jp/
 
 ## セットアップ
 
-1. このリポジトリを Databricks ワークスペースの Repos にクローン
-2. `config/application.yaml` の `catalog` を自分の環境に合わせて変更
-3. ノートブックを 00 番から順に実行
+### 方法1: Git フォルダ（Repos）でクローン
+
+1. Databricks ワークスペースの左サイドバーから **Workspace** をクリック
+2. クローン先のフォルダ（例: `/Users/<your-email>/`）に移動
+3. 右上の **⋮** > **Create** > **Git folder** を選択
+4. 以下を入力して **Create Git folder** をクリック
+   - **Git repository URL**: `https://github.com/skotani-db/var-risk-management-jp.git`
+   - **Git provider**: GitHub
+5. リポジトリがワークスペースにクローンされます
+
+### 方法2: ZIP ダウンロード（Repos を使えない場合）
+
+Git 連携が制限されている環境では、ZIP でダウンロードしてワークスペースにアップロードできます。
+
+1. GitHub リポジトリページ右上の **Code** > **Download ZIP** をクリック
+2. ダウンロードした `var-risk-management-jp-main.zip` を解凍
+3. Databricks ワークスペースの左サイドバーから **Workspace** をクリック
+4. アップロード先のフォルダ（例: `/Users/<your-email>/`）に移動
+5. 右上の **⋮** > **Import** を選択
+6. **File** を選択し、解凍したフォルダ内のファイルをまとめてドラッグ＆ドロップ
+   - または、解凍したフォルダごと DnD でインポート可能です
+7. フォルダ構成が維持された状態でインポートされます
+
+### 共通手順
+
+1. `config/configure_notebook.py` の `catalog` を自分の環境に合わせて変更
+2. ノートブックを 00 番から順に実行
 
 ## 技術仕様
 
 - **Serverless Runtime v5**: 全ノートブックが pip install なしで動作
 - **外部依存なし**: scipy, statsmodels, seaborn, tempo, yfinance は一切使用しない
+- **日本語フォント**: `japanize-matplotlib` を自動インストールし、matplotlib の日本語文字化けを防止
 - **閉域環境対応**: インターネット接続なしで完全動作（ダミーデータを自動生成）
