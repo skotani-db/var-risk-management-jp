@@ -24,6 +24,7 @@ Databricks の主要機能を **バリュー・アット・リスク（VaR）** 
 | 08 | VaR Aggregation & Compliance | Spark ML, バックテスト | バーゼル規制対応 |
 | 09 | Dashboard & Genie | AI/BI Dashboard, Genie | リスクレポーティング |
 | 10 | Operations & System Tables | System Tables, ジョブ監視 | 運用・コスト管理 |
+| 11 | Lakeflow Designer Risk Report | Lakeflow Designer, Excel取込 | リスク調整・レポート生成 |
 
 ## ディレクトリ構成
 
@@ -40,6 +41,7 @@ var-risk-management-jp/
 ├── 08_var_aggregation_compliance.py # VaR集計・コンプライアンス
 ├── 09_dashboard_and_genie.py       # ダッシュボード
 ├── 10_operations_system_tables.py  # 運用監視
+├── 11_lakeflow_designer_risk_report.py # Lakeflow Designer + Excelレポート
 ├── config/
 │   ├── application.yaml            # 環境設定
 │   ├── configure_notebook.py       # 共通セットアップ
