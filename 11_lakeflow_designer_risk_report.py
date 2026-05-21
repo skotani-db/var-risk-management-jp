@@ -262,35 +262,45 @@
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 3. Genie Code で変換ロジックを生成する
+# MAGIC ## 3. Genie Code にプロンプトを投げてパイプラインを生成する
 # MAGIC
-# MAGIC Step 4 の各演算子は、**Genie Code（AI アシスタント）** に自然言語で指示して生成できます。
-# MAGIC 設定ペインを開いた状態で、以下のプロンプトをそのまま入力してください。
+# MAGIC Step 2 でソース演算子を追加したら、あとは **Genie Code に1つのプロンプトを投げるだけ** で
+# MAGIC パイプライン全体を自動生成できます。
 # MAGIC
-# MAGIC ### 変換ステップごとのプロンプト例
+# MAGIC キャンバス上部の Genie Code アイコンをクリックし、以下のプロンプトをコピー＆ペーストしてください：
 # MAGIC
-# MAGIC | ステップ | 演算子 | Genie Code に入力するプロンプト |
-# MAGIC |---|---|---|
-# MAGIC | 4-1 | 結合 | `monte_carlo_trials と weight_adjustments を ticker で Inner Join して` |
-# MAGIC | 4-2 | 変換 | `returns * (new_weight_pct / 100) で加重リターンを計算する列 adjusted_weighted_return を追加して` |
-# MAGIC | 4-3 | 集計 | `country でグループ化して adjusted_weighted_return の合計を portfolio_return として集計して` |
-# MAGIC | 4-4 | 結合 | `集計結果と risk_limits を country = target で Left Join して` |
-# MAGIC | 4-5 | 変換 | `var_99 が limit_value 以上なら 'OK'、そうでなければ 'BREACH' となる status 列を追加して` |
+# MAGIC ---
 # MAGIC
-# MAGIC > **ポイント**: Genie Code は設定ペイン内で画像アップロードにも対応しています。
-# MAGIC > 例えば、既存の Excel レポートのスクリーンショットを貼り付けて
+# MAGIC **コンプライアンスレポート用プロンプト（そのままコピーして使えます）**:
+# MAGIC
+# MAGIC ```
+# MAGIC 以下のパイプラインを構築してください:
+# MAGIC
+# MAGIC 1. monte_carlo_trials と weight_adjustments を ticker で Inner Join
+# MAGIC 2. 結合結果に adjusted_weighted_return = returns * (new_weight_pct / 100) 列を追加
+# MAGIC 3. country でグループ化して adjusted_weighted_return の合計を portfolio_return として集計
+# MAGIC 4. 集計結果と risk_limits を country = target で Left Join
+# MAGIC 5. status 列を追加: var_99 >= limit_value なら 'OK'、それ以外は 'BREACH'
+# MAGIC 6. 出力テーブル名: risk_compliance_report
+# MAGIC ```
+# MAGIC
+# MAGIC ---
+# MAGIC
+# MAGIC **ストレステスト用プロンプト**（別のビジュアルデータ準備で使用）:
+# MAGIC
+# MAGIC ```
+# MAGIC risk_compliance_report と stress_scenarios を使って以下を計算してください:
+# MAGIC
+# MAGIC 1. stress_scenarios の target_country が 'ALL' の場合は全国の var_99 の平均を使用、
+# MAGIC    それ以外は対象国の var_99 を使用
+# MAGIC 2. stressed_var = 対象 var_99 * volatility_multiplier + (price_shock_pct / 100)
+# MAGIC 3. additional_loss = stressed_var - 通常の var_99
+# MAGIC 4. 出力テーブル名: stress_test_report
+# MAGIC ```
+# MAGIC
+# MAGIC > **ポイント**: Genie Code は画像アップロードにも対応しています。
+# MAGIC > 既存の Excel レポートのスクリーンショットを貼り付けて
 # MAGIC > 「このレポートと同じ形式になるよう変換して」と指示することもできます。
-# MAGIC
-# MAGIC ### ストレステスト用パイプラインも同様に作成可能
-# MAGIC
-# MAGIC ストレステストの計算も、別のビジュアルデータ準備として Genie Code で構築できます：
-# MAGIC
-# MAGIC 1. 新しいビジュアルデータ準備を作成
-# MAGIC 2. ソースに `risk_compliance_report` と `stress_scenarios` を追加
-# MAGIC 3. Genie Code に以下を入力:
-# MAGIC    - `stress_scenarios の各シナリオについて、risk_compliance_report の var_99 に`
-# MAGIC      `volatility_multiplier を掛けて price_shock_pct / 100 を加えた stressed_var を計算して`
-# MAGIC 4. 出力テーブル名: `stress_test_report`
 
 # COMMAND ----------
 
