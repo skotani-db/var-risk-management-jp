@@ -68,12 +68,30 @@
 # MAGIC
 # MAGIC ---
 # MAGIC
-# MAGIC ### Step 2: Excel をデータソースとして追加（ドラッグ＆ドロップ）
+# MAGIC ### Step 2: 調整用 Volume に Excel をアップロード
 # MAGIC
-# MAGIC 手元の `risk_adjustment_q2_2026.xlsx` を **キャンバスに直接ドラッグ＆ドロップ** します。
-# MAGIC Designer が自動的にワークスペースファイルシステムにアップロードし、ソース演算子を作成します。
+# MAGIC まず、手元の Excel を **専用の Volume (`risk_adjustments`)** にアップロードします。
+# MAGIC 市場データ用の `raw_data` Volume とは別にしているのがポイントです。
 # MAGIC
-# MAGIC > **Excel ファイルの注意点**: 事前にワークスペースで Excel ファイル形式のサポートが有効化されている必要があります。
+# MAGIC 1. 左メニュー「**カタログ**」→ カタログ → スキーマ `var_risk_demo` → 「**Volumes**」タブ
+# MAGIC 2. `risk_adjustments` Volume をクリック
+# MAGIC 3. 「**このボリュームにアップロード**」ボタンをクリック
+# MAGIC 4. 手元の `risk_adjustment_q2_2026.xlsx` を **ドラッグ＆ドロップ**
+# MAGIC
+# MAGIC > **Volume を分ける理由（リネージのポイント）**:
+# MAGIC > - `raw_data` Volume → 市場データ（株価 CSV 等）のソース
+# MAGIC > - `risk_adjustments` Volume → リスク調整 Excel のソース
+# MAGIC >
+# MAGIC > Unity Catalog のリネージグラフでは **Volume 単位で依存関係が表示** されるため、
+# MAGIC > 「レポートのリスクリミットはどの Volume（=どの業務プロセス）から来たのか？」が一目瞭然になります。
+# MAGIC
+# MAGIC ---
+# MAGIC
+# MAGIC ### Step 2b: ソース演算子で Volume 上の Excel を参照
+# MAGIC
+# MAGIC 1. キャンバス上の「**＋**」ボタン → 「**ソース**」を選択
+# MAGIC 2. 「**ファイルをアップロード**」を選択
+# MAGIC 3. アップロード先として `risk_adjustments` Volume を指定し、先ほどアップロードした Excel を選択
 # MAGIC
 # MAGIC シートごとにソース演算子が必要なため、以下の3つを作成します:
 # MAGIC
@@ -84,9 +102,6 @@
 # MAGIC | `stress_scenarios` | ストレスシナリオ | 極端イベントの想定損失率 |
 # MAGIC
 # MAGIC **演算子の名前変更**: ソース演算子をダブルクリック → 設定ペイン上部のテキストフィールドで名前を編集
-# MAGIC
-# MAGIC > **別の取り込み方法**: ソース構成ペインで「**ファイルからテーブルを作成**」を選択すると、
-# MAGIC > マネージドテーブルとして Unity Catalog に保存されるため、大量データではパフォーマンスが優れます。
 # MAGIC
 # MAGIC ---
 # MAGIC
@@ -275,23 +290,21 @@
 
 import pandas as pd
 
-volume_path = "/Volumes/{}/{}/{}".format(
+# 調整用 Volume（raw_data とは分離してリネージを明確化）
+adjustments_volume_path = "/Volumes/{}/{}/{}".format(
     config['database']['catalog'],
     config['database']['schema'],
-    config['database']['volume']
+    config['database']['volume_adjustments']
 )
 
-# data/ フォルダの Excel を Volume にコピー
-upload_path = f"{volume_path}/risk_adjustments"
-dbutils.fs.mkdirs(upload_path)
-
+# data/ フォルダの Excel を調整用 Volume にコピー
 notebook_dir = dbutils.notebook.entry_point.getDbutils().notebook().getContext().notebookPath().get().rsplit("/", 1)[0]
 dbutils.fs.cp(
     f"file:/Workspace{notebook_dir}/data/risk_adjustment_q2_2026.xlsx",
-    f"{upload_path}/risk_adjustment_q2_2026.xlsx"
+    f"{adjustments_volume_path}/risk_adjustment_q2_2026.xlsx"
 )
 
-excel_path = f"{upload_path}/risk_adjustment_q2_2026.xlsx"
+excel_path = f"{adjustments_volume_path}/risk_adjustment_q2_2026.xlsx"
 print(f"Excel アップロード完了: {excel_path}")
 
 # COMMAND ----------
@@ -543,7 +556,7 @@ print("  - stress_test_report（ストレステスト結果）")
 # MAGIC %md
 # MAGIC ## 8. リネージの確認（Excel でもデータの来歴が追跡可能）
 # MAGIC
-# MAGIC Excel からアップロードしたデータでも、Lakeflow Designer 経由で取り込めば
+# MAGIC Excel からアップロードしたデータでも、Volume 経由で Lakeflow Designer に取り込めば
 # MAGIC **Unity Catalog のリネージ（データの来歴）が自動的に記録** されます。
 # MAGIC
 # MAGIC ### 確認方法
@@ -552,28 +565,41 @@ print("  - stress_test_report（ストレステスト結果）")
 # MAGIC 3. 以下のようなデータフローが可視化されます：
 # MAGIC
 # MAGIC ```
-# MAGIC [Excel: risk_adjustment_q2_2026.xlsx]
-# MAGIC     │
-# MAGIC     ├── weight_adjustments ──┐
-# MAGIC     └── risk_limits ─────────┤
-# MAGIC                              │
-# MAGIC [monte_carlo_trials] ────────┤
-# MAGIC                              │
-# MAGIC                              ▼
-# MAGIC                   risk_compliance_report
-# MAGIC                              │
-# MAGIC                              ▼
-# MAGIC                     stress_test_report
+# MAGIC [Volume: risk_adjustments]          [Volume: raw_data]
+# MAGIC  (Excel アップロード先)               (市場データ CSV)
+# MAGIC     │                                    │
+# MAGIC     ├── weight_adjustments               │
+# MAGIC     ├── risk_limits                      ├── market_data
+# MAGIC     └── stress_scenarios                 └── ...
+# MAGIC          │                                    │
+# MAGIC          │              ┌─────────────────────┘
+# MAGIC          │              │  (08 で計算済み)
+# MAGIC          │              ▼
+# MAGIC          │        monte_carlo_trials
+# MAGIC          │              │
+# MAGIC          └──────┬───────┘
+# MAGIC                 ▼
+# MAGIC      risk_compliance_report
+# MAGIC                 │
+# MAGIC                 ▼
+# MAGIC        stress_test_report
 # MAGIC ```
 # MAGIC
+# MAGIC ### Volume を分けたことで見えるもの
+# MAGIC - **`risk_adjustments` Volume**: リスクマネージャーが Excel で定義した調整データの起点
+# MAGIC - **`raw_data` Volume**: 市場データパイプラインの起点
+# MAGIC - リネージグラフを見れば、**レポートが2つの独立した業務プロセス**（市場データ取込 + リスク調整）から
+# MAGIC   生成されていることが一目瞭然
+# MAGIC
 # MAGIC ### 規制対応での価値
-# MAGIC - **監査証跡**: 「このレポートのリスクリミットはどの Excel から来たのか？」に即座に回答可能
-# MAGIC - **影響分析**: リミット定義を変更した場合、どのレポートに影響するかを事前に把握
-# MAGIC - **データ品質の透明性**: パイプラインの各ステップで何件のデータが処理されたか追跡可能
+# MAGIC - **監査証跡**: 「このレポートのリスクリミットはどの Volume のどの Excel から来たのか？」に即座に回答可能
+# MAGIC - **影響分析**: リミット定義の Excel を差し替えた場合、どのレポートに影響するかを事前に把握
+# MAGIC - **業務プロセスの分離**: Volume を分けることで、市場データの問題と調整データの問題を切り分けて調査可能
 # MAGIC - **Excel でも安心**: 手元のファイルからの取り込みでも、テーブル間の依存関係が Unity Catalog に自動記録される
 # MAGIC
 # MAGIC > **PoC のデモポイント**: カタログ UI でリネージグラフを見せることで、
-# MAGIC > 「Excel 運用でもガバナンスが効く」ことを視覚的に示せます。
+# MAGIC > 「Excel 運用でもガバナンスが効く」「Volume を分ければ業務プロセスごとにデータの出自を追跡できる」
+# MAGIC > ことを視覚的に示せます。
 
 # COMMAND ----------
 

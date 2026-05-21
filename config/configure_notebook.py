@@ -56,6 +56,7 @@ config = {
     'catalog': 'shotkotani_demo_ws',
     'schema': 'var_risk_demo',
     'volume': 'raw_data',
+    'volume_adjustments': 'risk_adjustments',
     'tables': {
       'stocks': 'market_data',
       'indicators': 'market_indicators',
@@ -90,6 +91,13 @@ _ = sql("CREATE VOLUME IF NOT EXISTS {}.{}.{}".format(
   config['database']['catalog'],
   config['database']['schema'],
   config['database']['volume']
+))
+
+# Unity Catalog: 調整用 Volume を作成（Excelアップロード先、リネージで区別するため分離）
+_ = sql("CREATE VOLUME IF NOT EXISTS {}.{}.{}".format(
+  config['database']['catalog'],
+  config['database']['schema'],
+  config['database']['volume_adjustments']
 ))
 
 # COMMAND ----------
