@@ -262,151 +262,47 @@
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC ## 3. Genie Code で変換ロジックを生成する
+# MAGIC
+# MAGIC Step 4 の各演算子は、**Genie Code（AI アシスタント）** に自然言語で指示して生成できます。
+# MAGIC 設定ペインを開いた状態で、以下のプロンプトをそのまま入力してください。
+# MAGIC
+# MAGIC ### 変換ステップごとのプロンプト例
+# MAGIC
+# MAGIC | ステップ | 演算子 | Genie Code に入力するプロンプト |
+# MAGIC |---|---|---|
+# MAGIC | 4-1 | 結合 | `monte_carlo_trials と weight_adjustments を ticker で Inner Join して` |
+# MAGIC | 4-2 | 変換 | `returns * (new_weight_pct / 100) で加重リターンを計算する列 adjusted_weighted_return を追加して` |
+# MAGIC | 4-3 | 集計 | `country でグループ化して adjusted_weighted_return の合計を portfolio_return として集計して` |
+# MAGIC | 4-4 | 結合 | `集計結果と risk_limits を country = target で Left Join して` |
+# MAGIC | 4-5 | 変換 | `var_99 が limit_value 以上なら 'OK'、そうでなければ 'BREACH' となる status 列を追加して` |
+# MAGIC
+# MAGIC > **ポイント**: Genie Code は設定ペイン内で画像アップロードにも対応しています。
+# MAGIC > 例えば、既存の Excel レポートのスクリーンショットを貼り付けて
+# MAGIC > 「このレポートと同じ形式になるよう変換して」と指示することもできます。
+# MAGIC
+# MAGIC ### ストレステスト用パイプラインも同様に作成可能
+# MAGIC
+# MAGIC ストレステストの計算も、別のビジュアルデータ準備として Genie Code で構築できます：
+# MAGIC
+# MAGIC 1. 新しいビジュアルデータ準備を作成
+# MAGIC 2. ソースに `risk_compliance_report` と `stress_scenarios` を追加
+# MAGIC 3. Genie Code に以下を入力:
+# MAGIC    - `stress_scenarios の各シナリオについて、risk_compliance_report の var_99 に`
+# MAGIC      `volatility_multiplier を掛けて price_shock_pct / 100 を加えた stressed_var を計算して`
+# MAGIC 4. 出力テーブル名: `stress_test_report`
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ---
-# MAGIC ## ここから先は、Lakeflow Designer で作成されたテーブルを使ったレポート生成です
+# MAGIC ## ここから先は、Designer で作成されたテーブルを使ったレポート確認です
 # MAGIC
-# MAGIC Designer パイプラインを実行すると、以下の Delta テーブルが作成されます：
-# MAGIC - `weight_adjustments` — ウェイト調整
-# MAGIC - `risk_limits` — リスクリミット
-# MAGIC - `stress_scenarios` — ストレスシナリオ
-# MAGIC - `risk_compliance_report` — コンプライアンスチェック結果
+# MAGIC Lakeflow Designer パイプラインを実行すると、以下の Delta テーブルが作成されます：
+# MAGIC - `risk_compliance_report` — コンプライアンスチェック結果（国別 VaR99 vs リミット）
+# MAGIC - `stress_test_report` — ストレステスト結果（任意）
 # MAGIC
-# MAGIC 以下のセルでは、これらのテーブルを使って **可視化とストレステスト** を行います。
-# MAGIC
-# MAGIC > **注意**: Lakeflow Designer のパイプラインを先に実行してからこのセクションを実行してください。
-# MAGIC > または、次のセルでコード版のパイプラインロジックを実行して同等のテーブルを作成することもできます。
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## 3. パイプラインロジック（コード版 — Designer の代替）
-# MAGIC
-# MAGIC Lakeflow Designer を使わずにコードで同等の処理を実行する場合は、
-# MAGIC このセクションを実行してください。Designer パイプラインを既に実行済みの場合はスキップできます。
-# MAGIC
-# MAGIC ### 3-0. Excel を Volume 経由で取り込み
-
-# COMMAND ----------
-
-import pandas as pd
-
-# 調整用 Volume（raw_data とは分離してリネージを明確化）
-adjustments_volume_path = "/Volumes/{}/{}/{}".format(
-    config['database']['catalog'],
-    config['database']['schema'],
-    config['database']['volume_adjustments']
-)
-
-# data/ フォルダの Excel を調整用 Volume にコピー
-notebook_dir = dbutils.notebook.entry_point.getDbutils().notebook().getContext().notebookPath().get().rsplit("/", 1)[0]
-dbutils.fs.cp(
-    f"file:/Workspace{notebook_dir}/data/risk_adjustment_q2_2026.xlsx",
-    f"{adjustments_volume_path}/risk_adjustment_q2_2026.xlsx"
-)
-
-excel_path = f"{adjustments_volume_path}/risk_adjustment_q2_2026.xlsx"
-print(f"Excel アップロード完了: {excel_path}")
-
-# COMMAND ----------
-
-# openpyxl のインストール（Serverless v5 にプリインストールされていない場合）
-try:
-    import openpyxl
-except ImportError:
-    import subprocess
-    subprocess.run(["pip", "install", "-q", "openpyxl"], check=True, capture_output=True)
-    import openpyxl
-
-# 各シートを読み込んで Delta テーブル化
-sheet_table_map = {
-    "ウェイト調整": "weight_adjustments",
-    "リスクリミット": "risk_limits",
-    "ストレスシナリオ": "stress_scenarios",
-}
-for sheet_name, table_name in sheet_table_map.items():
-    df = pd.read_excel(excel_path, sheet_name=sheet_name, engine="openpyxl")
-    spark.createDataFrame(df).write.format("delta").mode("overwrite").saveAsTable(table_name)
-    print(f"  {table_name}: {len(df)} 行")
-
-print("\nDelta テーブル作成完了")
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ### 3-1. 調整後ウェイトでの加重リターン再計算
-
-# COMMAND ----------
-
-from pyspark.sql import functions as F
-from utils.var_udf import weighted_returns, get_var_udf
-
-# ウェイト調整テーブル
-adjustments = (
-    spark.read.table("weight_adjustments")
-    .withColumn("new_weight", F.col("new_weight_pct") / 100)
-)
-
-# Monte Carlo 結果と新ウェイトを結合
-trials_df = spark.read.table(config['database']['tables']['mc_trials'])
-adjusted_simulation = (
-    trials_df
-    .join(adjustments.select("ticker", "new_weight", "country", "industry"), ["ticker"])
-    .withColumn("adjusted_weighted_return", weighted_returns("returns", "new_weight"))
-)
-
-print(f"結合結果: {adjusted_simulation.count()} 行")
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ### 3-2. 調整後 VaR の計算（国別）
-
-# COMMAND ----------
-
-adjusted_var_by_country = (
-    adjusted_simulation
-    .groupBy("date", "country")
-    .agg(F.sum("adjusted_weighted_return").alias("portfolio_return"))
-    .groupBy("country")
-    .agg(
-        F.expr("percentile(portfolio_return, 0.01)").alias("var_99"),
-        F.mean("portfolio_return").alias("avg_return"),
-        F.stddev("portfolio_return").alias("std_return"),
-        F.count("*").alias("n_observations")
-    )
-    .orderBy("var_99")
-)
-
-display(adjusted_var_by_country)
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ### 3-3. リスクリミットとの突合（コンプライアンスチェック）
-
-# COMMAND ----------
-
-limits = (
-    spark.read.table("risk_limits")
-    .filter(F.col("limit_type") == "VaR99_country")
-)
-
-compliance_check = (
-    adjusted_var_by_country
-    .join(limits, adjusted_var_by_country["country"] == limits["target"], "left")
-    .withColumn(
-        "status",
-        F.when(F.col("var_99") >= F.col("limit_value"), "OK（リミット内）")
-         .otherwise("BREACH（リミット超過）")
-    )
-    .withColumn(
-        "buffer",
-        F.round((F.col("limit_value") - F.col("var_99")) / F.abs(F.col("limit_value")) * 100, 1)
-    )
-    .select("country", "var_99", "limit_value", "status", "buffer", "approver")
-)
-
-display(compliance_check)
+# MAGIC > **注意**: セクション 2 の Designer パイプラインを先に実行してから、以下のセルを実行してください。
 
 # COMMAND ----------
 
@@ -415,10 +311,13 @@ display(compliance_check)
 
 # COMMAND ----------
 
+from pyspark.sql import functions as F
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 
-report_df = compliance_check.toPandas()
+# Designer が出力した risk_compliance_report テーブルを読み込み
+report_df = spark.read.table("risk_compliance_report").toPandas()
 
 fig, ax = plt.subplots(figsize=(14, 7))
 
@@ -456,8 +355,10 @@ plt.show()
 # MAGIC %md
 # MAGIC ## 5. ストレステスト（Excel シナリオ適用）
 # MAGIC
-# MAGIC アップロードした Excel のストレスシナリオを適用し、
-# MAGIC 極端な市場環境での損失を推定します。
+# MAGIC Designer で `stress_scenarios` テーブルも作成されています。
+# MAGIC ここでは、コンプライアンスレポートとストレスシナリオを組み合わせて損失を推定します。
+# MAGIC
+# MAGIC > この計算も Genie Code で別のビジュアルデータ準備として構築可能です（セクション 3 参照）。
 
 # COMMAND ----------
 
@@ -522,23 +423,14 @@ plt.show()
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 7. レポートを Delta テーブルとして保存
+# MAGIC ## 7. ストレステスト結果を Delta テーブルとして保存
+# MAGIC
+# MAGIC `risk_compliance_report` は Designer パイプラインが作成済みです。
+# MAGIC ストレステスト結果もテーブルに保存し、ダッシュボードで活用できるようにします。
 
 # COMMAND ----------
 
 from datetime import datetime
-
-report_final = (
-    compliance_check
-    .withColumn("report_date", F.lit(datetime.now().strftime("%Y-%m-%d")))
-    .withColumn("report_type", F.lit("Q2 2026 リバランス後"))
-)
-
-(
-    report_final
-    .write.format("delta").mode("overwrite")
-    .saveAsTable("risk_compliance_report")
-)
 
 (
     spark.createDataFrame(stress_result_df)
@@ -547,9 +439,7 @@ report_final = (
     .saveAsTable("stress_test_report")
 )
 
-print("レポートテーブル作成完了:")
-print("  - risk_compliance_report（コンプライアンスチェック結果）")
-print("  - stress_test_report（ストレステスト結果）")
+print("ストレステスト結果を保存: stress_test_report")
 
 # COMMAND ----------
 
@@ -606,15 +496,15 @@ print("  - stress_test_report（ストレステスト結果）")
 # MAGIC %md
 # MAGIC ## Lakeflow Designer のメリット
 # MAGIC
-# MAGIC | 観点 | コード版（セクション3） | Lakeflow Designer（セクション2） |
+# MAGIC | 観点 | 従来のコードベース ETL | Lakeflow Designer |
 # MAGIC |---|---|---|
-# MAGIC | 構築者 | エンジニア | アナリスト・非エンジニアでも可 |
-# MAGIC | データソース追加 | コード変更が必要 | Excel をキャンバスにドラッグ＆ドロップ |
+# MAGIC | 構築者 | エンジニアが PySpark / SQL を記述 | アナリスト・非エンジニアでも GUI で構築可能 |
+# MAGIC | データソース追加 | コード変更＋デプロイが必要 | Volume に Excel をアップロードするだけ |
+# MAGIC | 変換ロジックの作成 | コーディング | 組み込み演算子を選択、または Genie Code に自然言語で指示 |
 # MAGIC | パイプラインの可視化 | コードを読む必要がある | DAG が自動表示、自動レイアウト |
-# MAGIC | 変換の作成 | PySpark / SQL を記述 | 組み込み演算子を選択、または Genie Code に自然言語で指示 |
 # MAGIC | 中間結果の確認 | `display()` でセルごとに実行 | 出力ペインでリアルタイムプレビュー＋データプロファイリング |
 # MAGIC | スケジュール実行 | ジョブ設定が必要 | 「スケジュール」ボタンまたは「ジョブに追加」 |
-# MAGIC | Excel 更新時の再実行 | ファイルの再アップロード＋再実行 | Excel を差し替えて「実行」 |
+# MAGIC | Excel 更新時の再実行 | ファイルの再アップロード＋コード再実行 | Excel を Volume に差し替えて「実行」 |
 # MAGIC | Git 管理 | `.py` ファイル | `.designer.ipynb` ファイルとして Git 連携可能 |
 
 # COMMAND ----------
