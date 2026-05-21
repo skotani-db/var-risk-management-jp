@@ -24,7 +24,7 @@ Databricks の主要機能を **バリュー・アット・リスク（VaR）** 
 | 08 | VaR Aggregation & Compliance | Spark ML, バックテスト | バーゼル規制対応 |
 | 09 | Dashboard & Genie | AI/BI Dashboard, Genie | リスクレポーティング |
 | 10 | Operations & System Tables | System Tables, ジョブ監視 | 運用・コスト管理 |
-| 11 | Lakeflow Designer Risk Report | Lakeflow Designer, Excel取込 | リスク調整・レポート生成 |
+| 11 | Lakeflow Designer Risk Report | Lakeflow Designer, AI/BI Dashboard | リスク調整・レポート生成 |
 
 ## ディレクトリ構成
 

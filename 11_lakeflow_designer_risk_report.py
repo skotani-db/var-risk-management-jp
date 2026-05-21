@@ -306,150 +306,64 @@
 
 # MAGIC %md
 # MAGIC ---
-# MAGIC ## ここから先は、Designer で作成されたテーブルを使ったレポート確認です
+# MAGIC ## 4. AI/BI Dashboard でレポートを可視化する
 # MAGIC
-# MAGIC Lakeflow Designer パイプラインを実行すると、以下の Delta テーブルが作成されます：
-# MAGIC - `risk_compliance_report` — コンプライアンスチェック結果（国別 VaR99 vs リミット）
-# MAGIC - `stress_test_report` — ストレステスト結果（任意）
+# MAGIC Lakeflow Designer が出力した `risk_compliance_report` と `stress_test_report` テーブルを
+# MAGIC **AI/BI Dashboard（Lakeview）** で可視化します。
 # MAGIC
-# MAGIC > **注意**: セクション 2 の Designer パイプラインを先に実行してから、以下のセルを実行してください。
+# MAGIC Dashboard Agent に以下のプロンプトを投げるだけでダッシュボードが自動生成されます。
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 4. コンプライアンスレポートの可視化
-
-# COMMAND ----------
-
-from pyspark.sql import functions as F
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-
-# Designer が出力した risk_compliance_report テーブルを読み込み
-report_df = spark.read.table("risk_compliance_report").toPandas()
-
-fig, ax = plt.subplots(figsize=(14, 7))
-
-countries = report_df['country'].tolist()
-var_values = report_df['var_99'].tolist()
-limit_values = report_df['limit_value'].tolist()
-statuses = report_df['status'].tolist()
-
-x = np.arange(len(countries))
-width = 0.35
-
-colors = ['#C00000' if 'BREACH' in s else '#1F4E79' for s in statuses]
-bars_var = ax.bar(x - width/2, var_values, width, label='調整後 VaR99', color=colors, alpha=0.85)
-bars_lim = ax.bar(x + width/2, limit_values, width, label='リスクリミット', color='#BF8F00', alpha=0.6)
-
-ax.set_xlabel('国', fontsize=12, fontweight='bold')
-ax.set_ylabel('VaR99', fontsize=12, fontweight='bold')
-ax.set_title('国別 VaR99 vs リスクリミット（調整後ポートフォリオ）', fontsize=14, fontweight='bold')
-ax.set_xticks(x)
-ax.set_xticklabels(countries)
-ax.legend()
-ax.axhline(y=0, linestyle='--', alpha=0.3, color='gray')
-
-for i, (v, s) in enumerate(zip(var_values, statuses)):
-    label = "BREACH" if "BREACH" in s else "OK"
-    color = '#C00000' if "BREACH" in s else '#006400'
-    ax.text(i - width/2, v - 0.001, label, ha='center', va='top',
-            fontweight='bold', fontsize=10, color=color)
-
-plt.tight_layout()
-plt.show()
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## 5. ストレステスト（Excel シナリオ適用）
+# MAGIC ### Step 1: AI/BI Dashboard を新規作成
+# MAGIC 1. 左サイドバー「**＋ 新規**」→「**ダッシュボード**」を選択
+# MAGIC 2. 空のダッシュボードが作成されます
 # MAGIC
-# MAGIC Designer で `stress_scenarios` テーブルも作成されています。
-# MAGIC ここでは、コンプライアンスレポートとストレスシナリオを組み合わせて損失を推定します。
+# MAGIC ### Step 2: Dashboard Agent にプロンプトを投げる
 # MAGIC
-# MAGIC > この計算も Genie Code で別のビジュアルデータ準備として構築可能です（セクション 3 参照）。
-
-# COMMAND ----------
-
-stress_scenarios = spark.read.table("stress_scenarios").toPandas()
-
-stress_results = []
-for _, scenario in stress_scenarios.iterrows():
-    target_country = scenario['target_country']
-    shock = scenario['price_shock_pct'] / 100
-    vol_mult = scenario['volatility_multiplier']
-
-    if target_country == 'ALL':
-        stressed_var = report_df['var_99'].mean() * vol_mult + shock
-    else:
-        country_var = report_df[report_df['country'] == target_country]['var_99']
-        if len(country_var) > 0:
-            stressed_var = country_var.values[0] * vol_mult + shock
-        else:
-            stressed_var = shock
-
-    stress_results.append({
-        'scenario': scenario['scenario_name'],
-        'target': target_country,
-        'stressed_var': round(stressed_var, 4),
-        'normal_var': round(report_df['var_99'].mean(), 4),
-        'additional_loss': round(stressed_var - report_df['var_99'].mean(), 4),
-        'probability': scenario['probability']
-    })
-
-stress_result_df = pd.DataFrame(stress_results)
-display(spark.createDataFrame(stress_result_df))
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## 6. ストレステスト結果の可視化
-
-# COMMAND ----------
-
-fig, ax = plt.subplots(figsize=(14, 7))
-
-scenarios = stress_result_df['scenario'].tolist()
-normal_var = stress_result_df['normal_var'].tolist()
-stress_var = stress_result_df['stressed_var'].tolist()
-
-x = np.arange(len(scenarios))
-width = 0.35
-
-ax.barh(x - width/2, normal_var, width, label='通常 VaR99', color='#1F4E79', alpha=0.8)
-ax.barh(x + width/2, stress_var, width, label='ストレス VaR', color='#C00000', alpha=0.8)
-
-ax.set_xlabel('VaR / 損失率', fontsize=12, fontweight='bold')
-ax.set_title('ストレスシナリオ別 VaR 比較', fontsize=14, fontweight='bold')
-ax.set_yticks(x)
-ax.set_yticklabels(scenarios)
-ax.legend(loc='lower left')
-ax.axvline(x=0, linestyle='--', alpha=0.3, color='gray')
-
-plt.tight_layout()
-plt.show()
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## 7. ストレステスト結果を Delta テーブルとして保存
+# MAGIC ダッシュボード上部の **AI アイコン（✨）** をクリックし、以下のプロンプトをコピー＆ペーストしてください：
 # MAGIC
-# MAGIC `risk_compliance_report` は Designer パイプラインが作成済みです。
-# MAGIC ストレステスト結果もテーブルに保存し、ダッシュボードで活用できるようにします。
-
-# COMMAND ----------
-
-from datetime import datetime
-
-(
-    spark.createDataFrame(stress_result_df)
-    .withColumn("report_date", F.lit(datetime.now().strftime("%Y-%m-%d")))
-    .write.format("delta").mode("overwrite")
-    .saveAsTable("stress_test_report")
-)
-
-print("ストレステスト結果を保存: stress_test_report")
+# MAGIC ---
+# MAGIC
+# MAGIC **ダッシュボード生成プロンプト（そのままコピーして使えます）**:
+# MAGIC
+# MAGIC ```
+# MAGIC 以下のテーブルを使ってリスク調整コンプライアンスダッシュボードを作成してください:
+# MAGIC
+# MAGIC データソース:
+# MAGIC - risk_compliance_report: country, var_99, limit_value, status, buffer, approver 列を含む
+# MAGIC - stress_test_report: scenario, target, stressed_var, normal_var, additional_loss, probability 列を含む
+# MAGIC
+# MAGIC 作成してほしいウィジェット:
+# MAGIC 1. ヘッダー: 「Q2 2026 リスク調整コンプライアンスレポート」
+# MAGIC 2. KPI カード: BREACH の件数、OK の件数
+# MAGIC 3. 棒グラフ: 国別の var_99 と limit_value を並べて表示、BREACH は赤、OK は青
+# MAGIC 4. テーブル: risk_compliance_report の全列を表示、status が BREACH の行を強調
+# MAGIC 5. 横棒グラフ: ストレスシナリオ別の normal_var と stressed_var を比較
+# MAGIC 6. テーブル: stress_test_report の全列を表示
+# MAGIC ```
+# MAGIC
+# MAGIC ---
+# MAGIC
+# MAGIC ### Step 3: Dashboard Agent が自動でダッシュボードを構築
+# MAGIC
+# MAGIC Agent がプロンプトに基づいて以下を自動生成します：
+# MAGIC - **データセット（SQL クエリ）** が「データ」タブに追加
+# MAGIC - **ウィジェット（チャート、テーブル、KPI）** が「キャンバス」タブに配置
+# MAGIC
+# MAGIC 生成されたダッシュボードは、そのまま **公開** して経営層やリスク委員会と共有できます。
+# MAGIC
+# MAGIC ### ダッシュボードの活用
+# MAGIC | 機能 | 説明 |
+# MAGIC |---|---|
+# MAGIC | **フィルター追加** | 国、業種、承認者でインタラクティブに絞り込み |
+# MAGIC | **スケジュール配信** | メールで定期レポートを自動送信 |
+# MAGIC | **PDF エクスポート** | 規制当局への提出資料として活用 |
+# MAGIC | **Genie スペース連携** | ダッシュボードのテーブルを Genie に接続し、自然言語でアドホック分析 |
+# MAGIC
+# MAGIC > **PoC のデモポイント**: Dashboard Agent がプロンプト1つでレポートを自動生成する様子を見せることで、
+# MAGIC > 「Excel → Designer → Dashboard の全フローがノーコード」であることを実演できます。
 
 # COMMAND ----------
 
@@ -532,7 +446,7 @@ print("ストレステスト結果を保存: stress_test_report")
 # MAGIC
 # MAGIC 2. **ストレスシナリオを追加**:
 # MAGIC    - 「ストレスシナリオ」シートに新しい行を追加（例: `中国景気減速, ALL, -10.0, 2.0, 中`）
-# MAGIC    - パイプラインを再実行し、セクション 5〜6 で新シナリオの影響を確認
+# MAGIC    - パイプラインを再実行し、ダッシュボードで新シナリオの影響を確認
 # MAGIC
 # MAGIC 3. **Lakeflow Designer で Expectations を設定**:
 # MAGIC    - `weight_adjustments` ノードに品質ルールを追加: `new_weight_pct > 0`
@@ -545,12 +459,19 @@ print("ストレステスト結果を保存: stress_test_report")
 # MAGIC
 # MAGIC このノートブックでは以下を学びました：
 # MAGIC
-# MAGIC - **Lakeflow Designer** で手元の Excel をデータソースとしてアップロードする方法
-# MAGIC - ビジュアル UI で **Join → Aggregate → リミット突合** のパイプラインを構築
-# MAGIC - **リスク調整後 VaR** の再計算とコンプライアンスチェック
-# MAGIC - **ストレステスト**: Excel で定義したシナリオの適用と可視化
+# MAGIC - **Volume に Excel をアップロード** し、Lakeflow Designer のデータソースとして利用
+# MAGIC - **Lakeflow Designer** のビジュアルキャンバスで結合・集計・判定パイプラインを構築
+# MAGIC - **Genie Code** にプロンプトを投げてパイプラインロジックを自動生成
+# MAGIC - **AI/BI Dashboard Agent** にプロンプトを投げてレポートを自動生成
+# MAGIC - **リネージ** で Excel からレポートまでのデータの来歴を追跡
+# MAGIC
+# MAGIC ### エンドツーエンドのノーコードフロー
+# MAGIC ```
+# MAGIC Excel 作成 → Volume アップロード → Lakeflow Designer → AI/BI Dashboard
+# MAGIC  (手元PC)      (カタログUI)         (Genie Code)        (Dashboard Agent)
+# MAGIC ```
 # MAGIC
 # MAGIC ### 次のステップ
-# MAGIC - `09_dashboard_and_genie` で作成したダッシュボードに `risk_compliance_report` テーブルを追加
 # MAGIC - Lakeflow Designer パイプラインをジョブとしてスケジュール実行（日次レポート自動化）
-# MAGIC - Excel を更新して再アップロードするだけでレポートが自動更新されるフローを体験
+# MAGIC - ダッシュボードのスケジュール配信を設定し、リスク委員会にメールで定期レポート
+# MAGIC - Excel を更新して Volume に再アップロードするだけで、パイプライン→ダッシュボードまで自動更新
