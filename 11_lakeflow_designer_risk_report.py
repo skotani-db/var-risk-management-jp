@@ -114,6 +114,48 @@
 # MAGIC
 # MAGIC ### Step 4: 変換演算子を追加・接続・設定
 # MAGIC
+# MAGIC これから構築するパイプラインの全体像です。この DAG を左から右へ順に作っていきます：
+# MAGIC
+# MAGIC ```
+# MAGIC ┌──────────────────────┐  ┌──────────────────────┐  ┌─────────────────────┐
+# MAGIC │  weight_adjustments  │  │  monte_carlo_trials  │  │    risk_limits       │
+# MAGIC │  (Excel D&D)         │  │  (既存テーブル参照)   │  │  (Excel D&D)         │
+# MAGIC └────────┬─────────────┘  └──────────┬───────────┘  └──────────┬──────────┘
+# MAGIC          │                           │                          │
+# MAGIC          └──────────┐   ┌────────────┘                          │
+# MAGIC                     ▼   ▼                                       │
+# MAGIC              ┌──────────────────┐                               │
+# MAGIC              │ 4-1 結合(ticker) │                               │
+# MAGIC              └────────┬─────────┘                               │
+# MAGIC                       ▼                                         │
+# MAGIC              ┌──────────────────┐                               │
+# MAGIC              │ 4-2 変換         │                               │
+# MAGIC              │ 加重リターン計算  │                               │
+# MAGIC              └────────┬─────────┘                               │
+# MAGIC                       ▼                                         │
+# MAGIC              ┌──────────────────┐                               │
+# MAGIC              │ 4-3 集計         │                               │
+# MAGIC              │ (country)        │                               │
+# MAGIC              └────────┬─────────┘                               │
+# MAGIC                       │                                         │
+# MAGIC                       └─────────────────┐   ┌──────────────────┘
+# MAGIC                                         ▼   ▼
+# MAGIC                                  ┌──────────────────┐
+# MAGIC                                  │ 4-4 結合         │
+# MAGIC                                  │ (country=target) │
+# MAGIC                                  └────────┬─────────┘
+# MAGIC                                           ▼
+# MAGIC                                  ┌──────────────────┐
+# MAGIC                                  │ 4-5 変換         │
+# MAGIC                                  │ BREACH/OK 判定   │
+# MAGIC                                  └────────┬─────────┘
+# MAGIC                                           ▼
+# MAGIC                                  ┌────────────────────────┐
+# MAGIC                                  │  出力                  │
+# MAGIC                                  │  risk_compliance_report│
+# MAGIC                                  └────────────────────────┘
+# MAGIC ```
+# MAGIC
 # MAGIC **演算子の追加方法**（3通り）:
 # MAGIC - キャンバス左側の **オペレーターメニュー** からドラッグ＆ドロップ
 # MAGIC - 既存演算子の右側に表示される「**＋**」ボタンをクリック（自動接続）
@@ -216,48 +258,6 @@
 # MAGIC | 出力 | 出力 | Unity Catalog のテーブルに結果を書き込み |
 # MAGIC | 整理 | 注記 / グループ | Markdown メモの追加、演算子の視覚的グループ化 |
 # MAGIC
-# MAGIC ---
-# MAGIC
-# MAGIC ### 完成イメージ（DAG）
-# MAGIC ```
-# MAGIC ┌──────────────────────┐  ┌──────────────────────┐  ┌─────────────────────┐
-# MAGIC │  weight_adjustments  │  │  monte_carlo_trials  │  │    risk_limits       │
-# MAGIC │  (Excel D&D)         │  │  (既存テーブル参照)   │  │  (Excel D&D)         │
-# MAGIC └────────┬─────────────┘  └──────────┬───────────┘  └──────────┬──────────┘
-# MAGIC          │                           │                          │
-# MAGIC          └──────────┐   ┌────────────┘                          │
-# MAGIC                     ▼   ▼                                       │
-# MAGIC              ┌──────────────────┐                               │
-# MAGIC              │  結合 (ticker)   │                               │
-# MAGIC              └────────┬─────────┘                               │
-# MAGIC                       ▼                                         │
-# MAGIC              ┌──────────────────┐                               │
-# MAGIC              │  変換            │                               │
-# MAGIC              │  加重リターン計算 │                               │
-# MAGIC              └────────┬─────────┘                               │
-# MAGIC                       ▼                                         │
-# MAGIC              ┌──────────────────┐                               │
-# MAGIC              │  集計 (country)  │                               │
-# MAGIC              │  国別VaR99       │                               │
-# MAGIC              └────────┬─────────┘                               │
-# MAGIC                       │                                         │
-# MAGIC                       └─────────────────┐   ┌──────────────────┘
-# MAGIC                                         ▼   ▼
-# MAGIC                                  ┌──────────────────┐
-# MAGIC                                  │  結合 (country=  │
-# MAGIC                                  │       target)    │
-# MAGIC                                  └────────┬─────────┘
-# MAGIC                                           ▼
-# MAGIC                                  ┌──────────────────┐
-# MAGIC                                  │  変換            │
-# MAGIC                                  │  BREACH/OK 判定  │
-# MAGIC                                  └────────┬─────────┘
-# MAGIC                                           ▼
-# MAGIC                                  ┌────────────────────────┐
-# MAGIC                                  │  出力                  │
-# MAGIC                                  │  risk_compliance_report│
-# MAGIC                                  └────────────────────────┘
-# MAGIC ```
 
 # COMMAND ----------
 
