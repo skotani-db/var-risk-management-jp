@@ -57,10 +57,17 @@ def safe_sql(query, description=""):
         # SHOW コマンドや特殊クエリはチェック不要
         if not table_name.startswith('system'):
             pass  # system 以外はそのまま実行
-        elif not spark.catalog.tableExists(table_name):
-            print(f"[SKIP] {description}")
-            print(f"  → このワークスペースでは {table_name} が利用できません")
-            return
+        else:
+            try:
+                if not spark.catalog.tableExists(table_name):
+                    print(f"[SKIP] {description}")
+                    print(f"  → このワークスペースでは {table_name} が利用できません")
+                    return
+            except Exception as check_err:
+                # tableExists 自体が権限不足でエラーになる場合
+                print(f"[SKIP] {description}")
+                print(f"  → {table_name} へのアクセス権限がありません: {str(check_err)[:200]}")
+                return
 
     try:
         result = spark.sql(query)
