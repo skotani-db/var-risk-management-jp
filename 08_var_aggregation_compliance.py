@@ -12,7 +12,7 @@
 # MAGIC - **追加ライブラリ**: 不要
 # MAGIC
 # MAGIC ## このノートブックで学ぶこと
-# MAGIC - **ベクトル集約**: ベクトルの集約関数でVaRを効率的に計算
+# MAGIC - **Spark native ベクトル集約**: ベクトルの集約関数でVaRを効率的に計算
 # MAGIC - **スライス＆ダイス**: 国別・業種別のリスク分解
 # MAGIC - **バーゼル規制バックテスト**: VaR閾値超過の検出とカラーゾーン分類
 # MAGIC
@@ -31,23 +31,17 @@ from pyspark.sql import functions as F
 from pyspark.sql.column import Column
 from utils.var_udf import weighted_returns, get_var_udf
 
-# Spark Connect (Serverless) では Summarizer が使えないため、
-# ベクトル要素ごとの合計を pandas UDF で実装
-from pyspark.sql.functions import pandas_udf
-from pyspark.sql.types import ArrayType, DoubleType
-import pandas as pd
-import numpy as np
-
-@pandas_udf(ArrayType(DoubleType()))
-def vector_sum(vectors: pd.Series) -> pd.Series:
-    """ベクトル（配列/dict/DenseVector）の要素ごと合計を計算"""
-    def to_array(v):
-        if isinstance(v, dict):
-            # Spark Connect では DenseVector が dict {"type":1,"values":[...]} として届く
-            return np.array(v.get('values', []))
-        return np.array(v)
-    arrays = [to_array(v) for v in vectors]
-    return pd.Series([np.sum(arrays, axis=0).tolist()])
+# Spark native のベクトル要素ごと合計（Summarizer の代替）
+# array<double> カラムを zip_with + aggregate で要素ごとに加算
+def vector_sum(col_name):
+    """array<double> カラムの要素ごと合計を集約する Spark native 式"""
+    return F.aggregate(
+        F.collect_list(col_name),
+        F.lit(None).cast('array<double>'),
+        lambda acc, x: F.when(acc.isNull(), x).otherwise(
+            F.zip_with(acc, x, lambda a, b: a + b)
+        )
+    )
 
 trials_df = spark.read.table(config['database']['tables']['mc_trials'])
 simulation_df = (
@@ -77,7 +71,7 @@ point_in_time_vector = (
     simulation_df
     .filter(F.col('date') == min_date)
     .select(vector_sum('weighted_returns').alias('returns'))
-    .toPandas().iloc[0].returns.toArray()
+    .toPandas().iloc[0].returns
 )
 
 # COMMAND ----------
@@ -322,7 +316,7 @@ plt.show()
 # MAGIC ## まとめ
 # MAGIC
 # MAGIC このノートブックでは以下を学びました：
-# MAGIC - **ベクトル集約** でベクトルを効率的に集約し、VaRを計算
+# MAGIC - **Spark native ベクトル集約** でベクトルを効率的に集約し、VaRを計算
 # MAGIC - **国別・業種別のリスク分解** によるポートフォリオのリスク構造分析
 # MAGIC - **バーゼル規制バックテスト** によるVaRモデルの検証（カラーゾーン分類）
 # MAGIC
