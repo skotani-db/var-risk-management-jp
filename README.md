@@ -54,8 +54,10 @@ var-risk-management-jp/
 │   ├── var_utils.py                # ユーティリティ関数
 │   ├── var_udf.py                  # Spark UDF
 │   └── var_viz.py                  # 可視化関数
-└── lakeflow/
-    └── dlt_pipeline.py             # DLTパイプライン定義
+├── lakeflow/
+│   └── dlt_pipeline.py             # DLTパイプライン定義
+└── exercises/
+    └── answers.py                  # 演習の解答例
 ```
 
 ## セットアップ

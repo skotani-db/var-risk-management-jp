@@ -20,7 +20,7 @@
 import dlt
 from pyspark.sql import functions as F
 
-# Volume パス（環境に合わせて変更）
+# Volume パス（config/configure_notebook.py の catalog/schema/volume に合わせて変更してください）
 VOLUME_PATH = "/Volumes/shotkotani_demo_ws/var_risk_demo/raw_data"
 
 # COMMAND ----------
