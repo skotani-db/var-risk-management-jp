@@ -72,6 +72,7 @@ def safe_sql(query, description=""):
         if "INSUFFICIENT_PERMISSIONS" in error_msg:
             print(f"[SKIP] {description}")
             print(f"  → 権限不足です。管理者にアクセス権限を依頼してください")
+            print(f"  → 詳細: {error_msg[:200]}")
         else:
             raise
 
