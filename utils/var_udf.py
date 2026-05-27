@@ -41,10 +41,16 @@ def get_shortfall_udf(simulations, var):
     return get_shortfall(simulations, var)
 
 
-@udf(VectorUDT())
+@udf('array<double>')
 def weighted_returns(returns, weight):
     """加重リターンベクトルを計算"""
-    return Vectors.dense(returns.toArray() * weight)
+    import numpy as np
+    # Spark Connect では DenseVector が dict として届く場合がある
+    if isinstance(returns, dict):
+        arr = np.array(returns.get('values', []))
+    else:
+        arr = returns.toArray() if hasattr(returns, 'toArray') else np.array(returns)
+    return (arr * weight).tolist()
 
 
 @udf('array<double>')

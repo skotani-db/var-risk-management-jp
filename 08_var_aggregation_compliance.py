@@ -39,9 +39,14 @@ import pandas as pd
 import numpy as np
 
 @pandas_udf(ArrayType(DoubleType()))
-def vector_sum(vectors: pd.Series) -> np.ndarray:
-    """ベクトル（配列）の要素ごと合計を計算"""
-    arrays = [np.array(v) for v in vectors]
+def vector_sum(vectors: pd.Series) -> pd.Series:
+    """ベクトル（配列/dict/DenseVector）の要素ごと合計を計算"""
+    def to_array(v):
+        if isinstance(v, dict):
+            # Spark Connect では DenseVector が dict {"type":1,"values":[...]} として届く
+            return np.array(v.get('values', []))
+        return np.array(v)
+    arrays = [to_array(v) for v in vectors]
     return pd.Series([np.sum(arrays, axis=0).tolist()])
 
 trials_df = spark.read.table(config['database']['tables']['mc_trials'])
