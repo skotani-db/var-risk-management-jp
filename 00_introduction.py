@@ -5,7 +5,7 @@
 # MAGIC
 # MAGIC ## 実行環境の設定
 # MAGIC - **コンピュート**: Serverless を選択（ノートブック右上「接続」→「Serverless」）
-# MAGIC - **Serverless バージョン**: v5（ノートブック上部「Configuration」→「Serverless version」で設定）
+# MAGIC - **Serverless バージョン**: v5（ノートブック右側「設定」→「基本環境」で選択）
 # MAGIC - **追加ライブラリ**: 不要（全て Serverless Runtime にプリインストール済み）
 # MAGIC
 # MAGIC ## このデモについて
@@ -31,6 +31,7 @@
 # MAGIC | 08 | VaR Aggregation & Compliance | Spark ML, バックテスト | バーゼル規制対応 |
 # MAGIC | 09 | Dashboard & Genie | AI/BI Dashboard, Genie | リスクレポーティング |
 # MAGIC | 10 | Operations & System Tables | System Tables, ジョブ監視 | 運用・コスト管理 |
+# MAGIC | 11 | Lakeflow Designer Risk Report | Lakeflow Designer, AI/BI Dashboard | リスク調整・レポート生成 |
 
 # COMMAND ----------
 

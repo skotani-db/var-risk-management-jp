@@ -6,7 +6,7 @@
 # MAGIC 通常のノートブックとしては実行できません。
 # MAGIC
 # MAGIC ## パイプラインの作成手順
-# MAGIC 1. 左メニュー「ジョブ」→「Delta Live Tables」→「パイプラインを作成」
+# MAGIC 1. 左メニュー「ETLパイプライン」→「パイプラインを作成」
 # MAGIC 2. ソースコードに `lakeflow/dlt_pipeline.py` を指定
 # MAGIC 3. ターゲットスキーマ: `var_risk_demo`
 # MAGIC 4. 「開始」をクリック

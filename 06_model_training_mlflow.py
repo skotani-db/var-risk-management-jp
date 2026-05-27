@@ -8,7 +8,7 @@
 # MAGIC
 # MAGIC ## 実行環境の設定
 # MAGIC - **コンピュート**: Serverless を選択（ノートブック右上「接続」→「Serverless」）
-# MAGIC - **Serverless バージョン**: v5（ノートブック上部「Configuration」→「Serverless version」で設定）
+# MAGIC - **Serverless バージョン**: v5（ノートブック右側「設定」→「基本環境」で選択）
 # MAGIC - **追加ライブラリ**: 不要
 # MAGIC
 # MAGIC ## このノートブックで学ぶこと
@@ -421,10 +421,15 @@ for mv in model_versions:
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- SQL からもモデル情報を確認可能
-# MAGIC -- リネージ: このモデルが参照しているテーブル・元データを追跡
-# MAGIC DESCRIBE MODEL value_at_risk
+# Unity Catalog のモデルメタデータを確認
+model_info = client.get_registered_model(uc_model_name)
+print(f"モデル名: {model_info.name}")
+print(f"作成日: {model_info.creation_timestamp}")
+print(f"最終更新: {model_info.last_updated_timestamp}")
+print(f"\n--- バージョン一覧 ---")
+for mv in client.search_model_versions(f"name='{uc_model_name}'"):
+    mv_detail = client.get_model_version(uc_model_name, mv.version)
+    print(f"  v{mv.version}: status={mv.status}, aliases={mv_detail.aliases}, run_id={mv.run_id[:8]}...")
 
 # COMMAND ----------
 

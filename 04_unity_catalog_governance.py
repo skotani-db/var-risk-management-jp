@@ -8,7 +8,7 @@
 # MAGIC
 # MAGIC ## 実行環境の設定
 # MAGIC - **コンピュート**: Serverless を選択（ノートブック右上「接続」→「Serverless」）
-# MAGIC - **Serverless バージョン**: v5（ノートブック上部「Configuration」→「Serverless version」で設定）
+# MAGIC - **Serverless バージョン**: v5（ノートブック右側「設定」→「基本環境」で選択）
 # MAGIC - **追加ライブラリ**: 不要
 # MAGIC
 # MAGIC ## このノートブックで学ぶこと
@@ -105,7 +105,7 @@
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC -- 現在の権限を確認（スキーマ名は config/application.yaml の値に合わせてください）
+# MAGIC -- 現在の権限を確認（スキーマ名は config/configure_notebook.py の値に合わせてください）
 # MAGIC SHOW GRANTS ON SCHEMA var_risk_demo
 
 # COMMAND ----------
@@ -148,14 +148,24 @@
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- テーブルにタグを設定
-# MAGIC ALTER TABLE market_data SET TAGS ('domain' = 'finance', 'data_classification' = 'private');
+# MAGIC %md
+# MAGIC > **注意**: `SET TAGS` はワークスペースの **Tag Policy** 設定によってはエラーになる場合があります。
+# MAGIC > その場合は、カタログ UI から手動でタグを設定できます：
+# MAGIC > 1. 左メニュー「カタログ」→ テーブルを選択
+# MAGIC > 2. 「概要」タブのテーブル名の横にある「+ タグを追加」をクリック
+# MAGIC > 3. キー（例: `domain`）と値（例: `finance`）を入力して保存
 
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC ALTER TABLE market_indicators SET TAGS ('domain' = 'finance', 'data_classification' = 'private');
+# MAGIC -- テーブルにタグを設定
+# MAGIC -- Tag Policy でエラーになる場合は、上記の手順で UI から設定してください
+# MAGIC ALTER TABLE market_data SET TAGS ('domain' = 'finance', 'data_classification' = 'pii');
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC ALTER TABLE market_indicators SET TAGS ('domain' = 'finance', 'data_classification' = 'pii');
 
 # COMMAND ----------
 
@@ -289,6 +299,7 @@
 
 # market_data テーブルにモニターを作成
 from databricks.sdk import WorkspaceClient
+from databricks.sdk.service.catalog import MonitorSnapshot
 
 w = WorkspaceClient()
 
@@ -299,7 +310,7 @@ try:
         table_name=monitor_table,
         assets_dir=f"/Shared/lakehouse_monitoring/{config['database']['schema']}",
         output_schema_name=f"{config['database']['catalog']}.{config['database']['schema']}",
-        snapshot={}  # Snapshot profile type
+        snapshot=MonitorSnapshot()
     )
     print(f"モニター作成完了: {monitor_table}")
     print(f"  ダッシュボード: {monitor.dashboard_id}")
@@ -343,10 +354,10 @@ except Exception as e:
 # MAGIC
 # MAGIC ### UI操作ポイント
 # MAGIC > 1. 左メニュー「カタログ」→ テーブルを選択
-# MAGIC > 2. 「Insights」タブ（または「概要」画面の利用状況セクション）
+# MAGIC > 2. 「洞察」タブ（または「概要」画面の利用状況セクション）
 # MAGIC > 3. 「過去30日間のクエリ数」「アクセスしたユーザー」「読み取り/書き込み比率」を確認
 # MAGIC >
-# MAGIC > テーブルの「Insights」が表示されない場合は、Unity Catalog のメタストアで
+# MAGIC > テーブルの「洞察」が表示されない場合は、Unity Catalog のメタストアで
 # MAGIC > System Tables（`system.access.audit`）が有効化されている必要があります。
 
 # COMMAND ----------

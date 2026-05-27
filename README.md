@@ -43,8 +43,7 @@ var-risk-management-jp/
 ├── 10_operations_system_tables.py  # 運用監視
 ├── 11_lakeflow_designer_risk_report.py # Lakeflow Designer + Excelレポート
 ├── config/
-│   ├── application.yaml            # 環境設定
-│   ├── configure_notebook.py       # 共通セットアップ
+│   ├── configure_notebook.py       # 環境設定・共通セットアップ
 │   ├── portfolio.json              # ポートフォリオ定義
 │   └── indicators.json             # 市場指標定義
 ├── data/

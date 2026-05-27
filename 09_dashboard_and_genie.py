@@ -8,7 +8,7 @@
 # MAGIC
 # MAGIC ## 実行環境の設定
 # MAGIC - **コンピュート**: Serverless を選択（ノートブック右上「接続」→「Serverless」）
-# MAGIC - **Serverless バージョン**: v5（ノートブック上部「Configuration」→「Serverless version」で設定）
+# MAGIC - **Serverless バージョン**: v5（ノートブック右側「設定」→「基本環境」で選択）
 # MAGIC - **追加ライブラリ**: 不要
 # MAGIC
 # MAGIC ## このノートブックで学ぶこと
@@ -23,7 +23,7 @@
 # MAGIC
 # MAGIC ## UI操作ポイント
 # MAGIC > **AI/BI Dashboard の作成手順**:
-# MAGIC > 1. 左メニュー「ダッシュボード」→「ダッシュボードを作成」→「Lakeview ダッシュボード」
+# MAGIC > 1. 左メニュー「ダッシュボード」→「ダッシュボードを作成」
 # MAGIC > 2. 「データ」タブでSQLクエリを追加（このノートブックのSQLを使用）
 # MAGIC > 3. 「キャンバス」タブでウィジェット（チャート、テーブル等）を配置
 # MAGIC > 4. フィルターを追加（日付範囲、国、業種）
@@ -64,10 +64,30 @@
 # MAGIC JOIN (SELECT * FROM VALUES
 # MAGIC   ('BCH', 'CHILE', 'Banks', 'Banco de Chile', 0.0344827586),
 # MAGIC   ('BSAC', 'CHILE', 'Banks', 'Banco Santander-Chile', 0.0344827586),
+# MAGIC   ('CCU', 'CHILE', 'Beverages', 'Compania Cervecerias Unidas S.A.', 0.0344827586),
+# MAGIC   ('ITCB', 'CHILE', 'Banks', 'Itau CorpBanca', 0.0344827586),
+# MAGIC   ('ENIC', 'CHILE', 'Electricity', 'Enersis Chile SA', 0.0344827586),
+# MAGIC   ('SQM', 'CHILE', 'Chemicals', 'SQM-Sociedad Quimica y Minera de Chile, S.A.', 0.0344827586),
 # MAGIC   ('CIB', 'COLOMBIA', 'Banks', 'BanColombia S.A.', 0.0344827586),
 # MAGIC   ('EC', 'COLOMBIA', 'Oil & Gas Producers', 'Ecopetrol S.A.', 0.0344827586),
+# MAGIC   ('AVAL', 'COLOMBIA', 'Financial Services', 'Grupo Aval Acciones y Valores S.A', 0.0344827586),
 # MAGIC   ('AMX', 'MEXICO', 'Mobile Telecommunications', 'America Movil', 0.0344827586),
+# MAGIC   ('AMOV', 'MEXICO', 'Mobile Telecommunications', 'America Movil Class A', 0.0344827586),
+# MAGIC   ('CX', 'MEXICO', 'Construction & Materials', 'CEMEX S.A.B. de C.V.', 0.0344827586),
+# MAGIC   ('KOF', 'MEXICO', 'Beverages', 'Coca-Cola FEMSA', 0.0344827586),
+# MAGIC   ('VLRS', 'MEXICO', 'Travel & Leisure', 'Volaris', 0.0344827586),
+# MAGIC   ('FMX', 'MEXICO', 'Beverages', 'FEMSA', 0.0344827586),
+# MAGIC   ('PAC', 'MEXICO', 'Industrial Transportation', 'Grupo Aeroportuario del Pacifico', 0.0344827586),
+# MAGIC   ('ASR', 'MEXICO', 'Industrial Transportation', 'Grupo Aeroportuario del Sureste', 0.0344827586),
+# MAGIC   ('BSMX', 'MEXICO', 'Banks', 'Grupo Financiero Santander Mexico', 0.0344827586),
+# MAGIC   ('SIM', 'MEXICO', 'Industrial Metals & Mining', 'Grupo Simec', 0.0344827586),
+# MAGIC   ('TV', 'MEXICO', 'Media', 'Grupo Televisa', 0.0344827586),
+# MAGIC   ('IBA', 'MEXICO', 'Food Producers', 'Industrias Bachoco', 0.0344827586),
+# MAGIC   ('BLX', 'PANAMA', 'Banks', 'Banco Latinoamericano de Comercio Exterior', 0.0344827586),
+# MAGIC   ('CPA', 'PANAMA', 'Travel & Leisure', 'Copa Holdings', 0.0344827586),
+# MAGIC   ('CPAC', 'PERU', 'Construction & Materials', 'Cementos Pacasmayo', 0.0344827586),
 # MAGIC   ('SCCO', 'PERU', 'Industrial Metals & Mining', 'Southern Copper', 0.0344827586),
+# MAGIC   ('FSM', 'PERU', 'Mining', 'Fortuna Silver Mines', 0.0344827586),
 # MAGIC   ('BAP', 'PERU', 'Banks', 'Credicorp Ltd.', 0.0344827586)
 # MAGIC   AS p(ticker, country, industry, company, weight)
 # MAGIC ) p ON s.ticker = p.ticker
@@ -233,10 +253,30 @@
 # MAGIC JOIN (SELECT * FROM VALUES
 # MAGIC   ('BCH', 'CHILE', 'Banks', 'Banco de Chile', 0.0344827586),
 # MAGIC   ('BSAC', 'CHILE', 'Banks', 'Banco Santander-Chile', 0.0344827586),
+# MAGIC   ('CCU', 'CHILE', 'Beverages', 'Compania Cervecerias Unidas S.A.', 0.0344827586),
+# MAGIC   ('ITCB', 'CHILE', 'Banks', 'Itau CorpBanca', 0.0344827586),
+# MAGIC   ('ENIC', 'CHILE', 'Electricity', 'Enersis Chile SA', 0.0344827586),
+# MAGIC   ('SQM', 'CHILE', 'Chemicals', 'SQM-Sociedad Quimica y Minera de Chile, S.A.', 0.0344827586),
 # MAGIC   ('CIB', 'COLOMBIA', 'Banks', 'BanColombia S.A.', 0.0344827586),
 # MAGIC   ('EC', 'COLOMBIA', 'Oil & Gas Producers', 'Ecopetrol S.A.', 0.0344827586),
+# MAGIC   ('AVAL', 'COLOMBIA', 'Financial Services', 'Grupo Aval Acciones y Valores S.A', 0.0344827586),
 # MAGIC   ('AMX', 'MEXICO', 'Mobile Telecommunications', 'America Movil', 0.0344827586),
+# MAGIC   ('AMOV', 'MEXICO', 'Mobile Telecommunications', 'America Movil Class A', 0.0344827586),
+# MAGIC   ('CX', 'MEXICO', 'Construction & Materials', 'CEMEX S.A.B. de C.V.', 0.0344827586),
+# MAGIC   ('KOF', 'MEXICO', 'Beverages', 'Coca-Cola FEMSA', 0.0344827586),
+# MAGIC   ('VLRS', 'MEXICO', 'Travel & Leisure', 'Volaris', 0.0344827586),
+# MAGIC   ('FMX', 'MEXICO', 'Beverages', 'FEMSA', 0.0344827586),
+# MAGIC   ('PAC', 'MEXICO', 'Industrial Transportation', 'Grupo Aeroportuario del Pacifico', 0.0344827586),
+# MAGIC   ('ASR', 'MEXICO', 'Industrial Transportation', 'Grupo Aeroportuario del Sureste', 0.0344827586),
+# MAGIC   ('BSMX', 'MEXICO', 'Banks', 'Grupo Financiero Santander Mexico', 0.0344827586),
+# MAGIC   ('SIM', 'MEXICO', 'Industrial Metals & Mining', 'Grupo Simec', 0.0344827586),
+# MAGIC   ('TV', 'MEXICO', 'Media', 'Grupo Televisa', 0.0344827586),
+# MAGIC   ('IBA', 'MEXICO', 'Food Producers', 'Industrias Bachoco', 0.0344827586),
+# MAGIC   ('BLX', 'PANAMA', 'Banks', 'Banco Latinoamericano de Comercio Exterior', 0.0344827586),
+# MAGIC   ('CPA', 'PANAMA', 'Travel & Leisure', 'Copa Holdings', 0.0344827586),
+# MAGIC   ('CPAC', 'PERU', 'Construction & Materials', 'Cementos Pacasmayo', 0.0344827586),
 # MAGIC   ('SCCO', 'PERU', 'Industrial Metals & Mining', 'Southern Copper', 0.0344827586),
+# MAGIC   ('FSM', 'PERU', 'Mining', 'Fortuna Silver Mines', 0.0344827586),
 # MAGIC   ('BAP', 'PERU', 'Banks', 'Credicorp Ltd.', 0.0344827586)
 # MAGIC   AS p(ticker, country, industry, company, weight)
 # MAGIC ) p ON s.ticker = p.ticker

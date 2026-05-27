@@ -8,7 +8,7 @@
 # MAGIC
 # MAGIC ## 実行環境の設定
 # MAGIC - **コンピュート**: Serverless を選択（ノートブック右上「接続」→「Serverless」）
-# MAGIC - **Serverless バージョン**: v5（ノートブック上部「Configuration」→「Serverless version」で設定）
+# MAGIC - **Serverless バージョン**: v5（ノートブック右側「設定」→「基本環境」で選択）
 # MAGIC - **追加ライブラリ**: 不要
 # MAGIC
 # MAGIC ## このノートブックで学ぶこと
@@ -93,13 +93,14 @@
 # MAGIC 2. 「**ファイルをアップロード**」を選択
 # MAGIC 3. アップロード先として `risk_adjustments` Volume を指定し、先ほどアップロードした Excel を選択
 # MAGIC
-# MAGIC シートごとにソース演算子が必要なため、以下の3つを作成します:
+# MAGIC シートごとにソース演算子が必要なため、以下の3つを作成します。
+# MAGIC **シート選択**: ソース演算子の設定ペインで「**シートを選択**」欄に Excel のシート名を入力してください。
 # MAGIC
-# MAGIC | ソース演算子名 | 取り込むシート | 説明 |
+# MAGIC | ソース演算子名 | 取り込むシート（`risk_adjustment_q2_2026.xlsx` のシート名） | 説明 |
 # MAGIC |---|---|---|
-# MAGIC | `weight_adjustments` | ウェイト調整 | 銘柄ごとの新ポートフォリオ比率 |
-# MAGIC | `risk_limits` | リスクリミット | 国別・業種別の VaR99 上限値 |
-# MAGIC | `stress_scenarios` | ストレスシナリオ | 極端イベントの想定損失率 |
+# MAGIC | `weight_adjustments` | `ウェイト調整` | 銘柄ごとの新ポートフォリオ比率 |
+# MAGIC | `risk_limits` | `リスクリミット` | 国別・業種別の VaR99 上限値 |
+# MAGIC | `stress_scenarios` | `ストレスシナリオ` | 極端イベントの想定損失率 |
 # MAGIC
 # MAGIC **演算子の名前変更**: ソース演算子をダブルクリック → 設定ペイン上部のテキストフィールドで名前を編集
 # MAGIC
@@ -224,6 +225,9 @@
 # MAGIC パイプラインを定期実行するには:
 # MAGIC - 上部メニューの「**スケジュール**」ボタンからスケジュールを設定
 # MAGIC - または「**ジョブに追加**」で既存ワークフローのタスクとして組み込み
+# MAGIC
+# MAGIC > **確認**: スケジュールを設定すると、左メニュー「**ジョブとパイプライン**」にジョブとして表示されます。
+# MAGIC > ここから実行履歴の確認や手動実行もできます。
 # MAGIC
 # MAGIC ---
 # MAGIC
@@ -368,7 +372,7 @@
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 8. リネージの確認（Excel でもデータの来歴が追跡可能）
+# MAGIC ## 5. リネージの確認（Excel でもデータの来歴が追跡可能）
 # MAGIC
 # MAGIC Excel からアップロードしたデータでも、Volume 経由で Lakeflow Designer に取り込めば
 # MAGIC **Unity Catalog のリネージ（データの来歴）が自動的に記録** されます。

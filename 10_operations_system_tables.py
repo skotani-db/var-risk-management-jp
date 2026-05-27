@@ -9,7 +9,7 @@
 # MAGIC
 # MAGIC ## 実行環境の設定
 # MAGIC - **コンピュート**: Serverless を選択（ノートブック右上「接続」→「Serverless」）
-# MAGIC - **Serverless バージョン**: v5（ノートブック上部「Configuration」→「Serverless version」で設定）
+# MAGIC - **Serverless バージョン**: v5（ノートブック右側「設定」→「基本環境」で選択）
 # MAGIC - **追加ライブラリ**: 不要
 # MAGIC
 # MAGIC ## このノートブックで学ぶこと
@@ -45,7 +45,23 @@
 
 # System Tables のクエリを安全に実行するヘルパー関数
 def safe_sql(query, description=""):
-    """System Tables が存在しない場合のみスキップ。それ以外のエラーは raise する"""
+    """
+    System Tables が存在しない場合はスキップ。
+    Spark Connect の gRPC エラーログを避けるため、事前にテーブル存在を確認する。
+    """
+    import re
+    # SQL から FROM 句のテーブル名を抽出
+    match = re.search(r'FROM\s+([\w.]+)', query, re.IGNORECASE)
+    if match:
+        table_name = match.group(1)
+        # SHOW コマンドや特殊クエリはチェック不要
+        if not table_name.startswith('system'):
+            pass  # system 以外はそのまま実行
+        elif not spark.catalog.tableExists(table_name):
+            print(f"[SKIP] {description}")
+            print(f"  → このワークスペースでは {table_name} が利用できません")
+            return
+
     try:
         result = spark.sql(query)
         if description:
@@ -53,12 +69,9 @@ def safe_sql(query, description=""):
         display(result)
     except Exception as e:
         error_msg = str(e)
-        if any(k in error_msg for k in ["TABLE_OR_VIEW_NOT_FOUND", "SCHEMA_NOT_FOUND", "INSUFFICIENT_PERMISSIONS"]):
+        if "INSUFFICIENT_PERMISSIONS" in error_msg:
             print(f"[SKIP] {description}")
-            if "INSUFFICIENT_PERMISSIONS" in error_msg:
-                print(f"  → 権限不足です。管理者に system tables へのアクセス権限を依頼してください")
-            else:
-                print(f"  → このワークスペースでは対象の System Table が利用できません")
+            print(f"  → 権限不足です。管理者にアクセス権限を依頼してください")
         else:
             raise
 
@@ -148,8 +161,8 @@ safe_sql("""
       cluster_id,
       driver_node_type,
       worker_node_type,
-      autoscale_min_workers,
-      autoscale_max_workers,
+      min_autoscale_workers,
+      max_autoscale_workers,
       create_time
     FROM system.compute.clusters
     WHERE delete_time IS NULL
@@ -234,6 +247,10 @@ safe_sql("""
 # MAGIC - **DLTパイプラインログ** でデータ品質パイプラインの健全性確認
 # MAGIC - **アラート設定** で障害の早期検知
 # MAGIC
+# MAGIC 次のノートブック `11_lakeflow_designer_risk_report` では、
+# MAGIC **Lakeflow Designer** を使って Excel のリスク調整データを取り込み、
+# MAGIC コンプライアンスレポートを自動生成する方法を学びます。
+# MAGIC
 # MAGIC ---
 # MAGIC
 # MAGIC ## 全体のまとめ
@@ -253,3 +270,4 @@ safe_sql("""
 # MAGIC | 08: Compliance | Spark ML、バーゼルバックテスト |
 # MAGIC | 09: Dashboard | AI/BI Dashboard、Genie精度改善 |
 # MAGIC | 10: Operations | System Tables、コスト管理 |
+# MAGIC | 11: Lakeflow Designer | Lakeflow Designer、AI/BI Dashboard |

@@ -8,7 +8,7 @@
 # MAGIC
 # MAGIC ## 実行環境の設定
 # MAGIC - **コンピュート**: Serverless を選択（ノートブック右上「接続」→「Serverless」）
-# MAGIC - **Serverless バージョン**: v5（ノートブック上部「Configuration」→「Serverless version」で設定）
+# MAGIC - **Serverless バージョン**: v5（ノートブック右側「設定」→「基本環境」で選択）
 # MAGIC - **追加ライブラリ**: 不要
 # MAGIC
 # MAGIC ## このノートブックで学ぶこと
@@ -23,7 +23,7 @@
 # MAGIC
 # MAGIC ## UI操作ポイント
 # MAGIC > **Lakeflow SDP パイプラインの確認方法**:
-# MAGIC > 1. 左メニュー「ジョブ」→「Delta Live Tables」タブ
+# MAGIC > 1. 左メニュー「ETLパイプライン」
 # MAGIC > 2. パイプラインをクリック → DAG（有向非巡回グラフ）表示で依存関係を確認
 # MAGIC > 3. 各テーブルのメトリクス（行数、品質違反数）を確認
 # MAGIC
@@ -88,7 +88,7 @@
 # MAGIC ```
 # MAGIC
 # MAGIC ### UI操作ポイント: パイプラインの作成
-# MAGIC > 1. 左メニュー「ジョブ」→「Delta Live Tables」→「パイプラインを作成」
+# MAGIC > 1. 左メニュー「ETLパイプライン」→「パイプラインを作成」
 # MAGIC > 2. ソースコードに `lakeflow/dlt_pipeline.py` を指定
 # MAGIC > 3. ターゲットカタログ・スキーマを設定 → Serverless にチェック → 「開始」
 # MAGIC
