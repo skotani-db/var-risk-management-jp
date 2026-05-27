@@ -12,7 +12,7 @@
 # MAGIC - **追加ライブラリ**: 不要
 # MAGIC
 # MAGIC ## このノートブックで学ぶこと
-# MAGIC - **Spark ML Summarizer**: ベクトルの集約関数でVaRを効率的に計算
+# MAGIC - **ベクトル集約**: ベクトルの集約関数でVaRを効率的に計算
 # MAGIC - **スライス＆ダイス**: 国別・業種別のリスク分解
 # MAGIC - **バーゼル規制バックテスト**: VaR閾値超過の検出とカラーゾーン分類
 # MAGIC
@@ -29,8 +29,20 @@
 
 from pyspark.sql import functions as F
 from pyspark.sql.column import Column
-from pyspark.ml.stat import Summarizer
 from utils.var_udf import weighted_returns, get_var_udf
+
+# Spark Connect (Serverless) では Summarizer が使えないため、
+# ベクトル要素ごとの合計を pandas UDF で実装
+from pyspark.sql.functions import pandas_udf
+from pyspark.sql.types import ArrayType, DoubleType
+import pandas as pd
+import numpy as np
+
+@pandas_udf(ArrayType(DoubleType()))
+def vector_sum(vectors: pd.Series) -> np.ndarray:
+    """ベクトル（配列）の要素ごと合計を計算"""
+    arrays = [np.array(v) for v in vectors]
+    return pd.Series([np.sum(arrays, axis=0).tolist()])
 
 trials_df = spark.read.table(config['database']['tables']['mc_trials'])
 simulation_df = (
@@ -59,7 +71,7 @@ min_date = trials_df.select(F.min('date').alias('date')).toPandas().iloc[0].date
 point_in_time_vector = (
     simulation_df
     .filter(F.col('date') == min_date)
-    .select(Summarizer.sum(F.col('weighted_returns')).alias('returns'))
+    .select(vector_sum('weighted_returns').alias('returns'))
     .toPandas().iloc[0].returns.toArray()
 )
 
@@ -83,7 +95,7 @@ import matplotlib.pyplot as plt
 risk_exposure = (
     simulation_df
     .groupBy('date')
-    .agg(Summarizer.sum(simulation_df['weighted_returns']).alias('returns'))
+    .agg(vector_sum('weighted_returns').alias('returns'))
     .withColumn('var_99', get_var_udf(F.col('returns'), F.lit(99)))
     .drop('returns')
     .orderBy('date')
@@ -114,7 +126,7 @@ plt.show()
 risk_exposure_country = (
     simulation_df
     .groupBy('date', 'country')
-    .agg(Summarizer.sum(simulation_df['weighted_returns']).alias('returns'))
+    .agg(vector_sum('weighted_returns').alias('returns'))
     .withColumn('var_99', get_var_udf(F.col('returns'), F.lit(99)))
     .drop('returns')
     .orderBy('date')
@@ -147,7 +159,7 @@ risk_exposure_industry = (
     simulation_df
     .filter(F.col('country') == 'PERU')
     .groupBy('date', 'industry')
-    .agg(Summarizer.sum(simulation_df['weighted_returns']).alias('returns'))
+    .agg(vector_sum('weighted_returns').alias('returns'))
     .withColumn('var_99', get_var_udf(F.col('returns'), F.lit(99)))
     .drop('returns')
     .orderBy('date')
@@ -219,7 +231,7 @@ inv_returns_df = (
 risk_exposure_df = (
     simulation_df
     .groupBy('date')
-    .agg(Summarizer.sum(simulation_df['weighted_returns']).alias('returns'))
+    .agg(vector_sum('weighted_returns').alias('returns'))
     .withColumn('var_99', get_var_udf(F.col('returns'), F.lit(99)))
     .drop('returns')
     .orderBy('date')
@@ -305,7 +317,7 @@ plt.show()
 # MAGIC ## まとめ
 # MAGIC
 # MAGIC このノートブックでは以下を学びました：
-# MAGIC - **Spark ML Summarizer** でベクトルを効率的に集約し、VaRを計算
+# MAGIC - **ベクトル集約** でベクトルを効率的に集約し、VaRを計算
 # MAGIC - **国別・業種別のリスク分解** によるポートフォリオのリスク構造分析
 # MAGIC - **バーゼル規制バックテスト** によるVaRモデルの検証（カラーゾーン分類）
 # MAGIC
