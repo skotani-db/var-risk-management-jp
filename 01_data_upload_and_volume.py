@@ -327,6 +327,15 @@ display(spark.read.table(config['database']['tables']['indicators']))
 
 # COMMAND ----------
 
+# DBTITLE 1,銘柄ごとの行数カウント
+# MAGIC %sql
+# MAGIC SELECT ticker, COUNT(*) AS row_count
+# MAGIC FROM shotkotani_demo_ws.var_risk_demo.market_data
+# MAGIC GROUP BY ticker
+# MAGIC ORDER BY ticker
+
+# COMMAND ----------
+
 # MAGIC %md
 # MAGIC ## まとめ
 # MAGIC

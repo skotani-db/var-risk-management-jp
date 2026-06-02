@@ -1,8 +1,10 @@
 # Databricks notebook source
+# DBTITLE 1,Cell 1
 # MAGIC %md
+# MAGIC    
 # MAGIC # Lakeflow SDP パイプライン定義
 # MAGIC
-# MAGIC このノートブックは **DLT パイプラインとして実行** するためのものです。
+# MAGIC このノートブックは **Lakeflow Spark Declarative Pipeline として実行** するためのものです。
 # MAGIC 通常のノートブックとしては実行できません。
 # MAGIC
 # MAGIC ## パイプラインの作成手順
@@ -12,12 +14,13 @@
 # MAGIC 4. 「開始」をクリック
 # MAGIC
 # MAGIC ## 補足
-# MAGIC 将来的に `databricks.declarative_pipelines` (dp) モジュールが GA になれば、
-# MAGIC `import dlt` を `import databricks.declarative_pipelines as dp` に置き換え可能です。
+# MAGIC `from pyspark import pipelines as dp` が現在の推奨インポートです。
+# MAGIC 旧来の `import dlt` も引き続き動作しますが、新規コードでは `dp` を使用してください。
 
 # COMMAND ----------
 
-import dlt
+# DBTITLE 1,Cell 2
+from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 
 # Volume パス（config/configure_notebook.py の catalog/schema/volume に合わせて変更してください）
@@ -30,7 +33,8 @@ VOLUME_PATH = "/Volumes/shotkotani_demo_ws/var_risk_demo/raw_data"
 
 # COMMAND ----------
 
-@dlt.table(
+# DBTITLE 1,Cell 4
+@dp.table(
     name="bronze_stocks",
     comment="株式市場の生データ（Auto Loaderで取り込み）"
 )
@@ -42,8 +46,10 @@ def bronze_stocks():
         .option("cloudFiles.inferColumnTypes", "true")
         .option("header", "true")
         .load(f"{VOLUME_PATH}/stocks")
-        .withColumn("_ingested_at", F.current_timestamp())
-        .withColumn("_source_file", F.col("_metadata.file_path"))
+        .withColumns({
+            "_ingested_at": F.current_timestamp(),
+            "_source_file": F.col("_metadata.file_path")
+        })
     )
 
 # COMMAND ----------
@@ -53,22 +59,25 @@ def bronze_stocks():
 
 # COMMAND ----------
 
-@dlt.table(
+# DBTITLE 1,Cell 6
+@dp.table(
     name="silver_stocks",
     comment="品質チェック済みの株式データ"
 )
-@dlt.expect("valid_ticker", "ticker IS NOT NULL")
-@dlt.expect("valid_date", "date IS NOT NULL")
-@dlt.expect_or_drop("positive_close", "close > 0")
-@dlt.expect_or_drop("positive_volume", "volume > 0")
+@dp.expect("valid_ticker", "ticker IS NOT NULL")
+@dp.expect("valid_date", "date IS NOT NULL")
+@dp.expect_or_drop("positive_close", "close > 0")
+@dp.expect_or_drop("positive_volume", "volume > 0")
 def silver_stocks():
     return (
-        dlt.read_stream("bronze_stocks")
-        .withColumn("close", F.col("close").cast("double"))
-        .withColumn("open", F.col("open").cast("double"))
-        .withColumn("high", F.col("high").cast("double"))
-        .withColumn("low", F.col("low").cast("double"))
-        .withColumn("volume", F.col("volume").cast("double"))
+        spark.readStream.table("bronze_stocks")
+        .withColumns({
+            "close": F.col("close").cast("double"),
+            "open": F.col("open").cast("double"),
+            "high": F.col("high").cast("double"),
+            "low": F.col("low").cast("double"),
+            "volume": F.col("volume").cast("double")
+        })
     )
 
 # COMMAND ----------
@@ -78,11 +87,12 @@ def silver_stocks():
 
 # COMMAND ----------
 
-@dlt.table(
+# DBTITLE 1,Cell 8
+@dp.materialized_view(
     name="gold_stocks_with_returns",
     comment="日次リターンと異常値フラグを含む株式データ"
 )
-@dlt.expect_or_drop("valid_return", "ABS(daily_return) < 0.5")
+@dp.expect_or_drop("valid_return", "ABS(daily_return) < 0.5")
 def gold_stocks_with_returns():
     """日次リターンを計算し、極端な値（50%超の日次変動）を除外"""
     from pyspark.sql import Window
@@ -90,7 +100,7 @@ def gold_stocks_with_returns():
     window_prev = Window.partitionBy("ticker").orderBy("date")
 
     return (
-        dlt.read("silver_stocks")
+        spark.read.table("silver_stocks")
         .withColumn("prev_close", F.lag("close", 1).over(window_prev))
         .filter(F.col("prev_close").isNotNull())
         .withColumn("daily_return", F.log(F.col("close") / F.col("prev_close")))

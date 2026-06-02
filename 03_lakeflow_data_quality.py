@@ -2,13 +2,9 @@
 # MAGIC %md
 # MAGIC # 03. Lakeflow SDP によるデータ品質管理と異常値検出
 # MAGIC
-# MAGIC
-# MAGIC ### 前提条件
-# MAGIC > **01_data_upload_and_volume** を先に実行してください（`market_data` テーブルが必要です）。
-# MAGIC
 # MAGIC ## 実行環境の設定
 # MAGIC - **コンピュート**: Serverless を選択（ノートブック右上「接続」→「Serverless」）
-# MAGIC - **Serverless バージョン**: v5（ノートブック右側「設定」→「基本環境」で選択）
+# MAGIC - **Serverless バージョン**: v5（ノートブック上部「Configuration」→「Serverless version」で設定）
 # MAGIC - **追加ライブラリ**: 不要
 # MAGIC
 # MAGIC ## このノートブックで学ぶこと
@@ -23,7 +19,7 @@
 # MAGIC
 # MAGIC ## UI操作ポイント
 # MAGIC > **Lakeflow SDP パイプラインの確認方法**:
-# MAGIC > 1. 左メニュー「ETLパイプライン」
+# MAGIC > 1. 左メニュー「ジョブとパイプライン」→「パイプライン」タブ
 # MAGIC > 2. パイプラインをクリック → DAG（有向非巡回グラフ）表示で依存関係を確認
 # MAGIC > 3. 各テーブルのメトリクス（行数、品質違反数）を確認
 # MAGIC
@@ -32,10 +28,6 @@
 # MAGIC **注意**: Lakeflow SDP パイプラインは通常、専用ノートブック (`lakeflow/dlt_pipeline.py`)
 # MAGIC として定義し、UIまたはAPIからパイプラインを作成して実行します。
 # MAGIC このノートブックでは概念説明と、同等のロジックをバッチで実行するデモを行います。
-
-# COMMAND ----------
-
-# MAGIC %run ./config/configure_notebook
 
 # COMMAND ----------
 
@@ -54,27 +46,17 @@
 # MAGIC
 # MAGIC ### Expectations（データ品質ルール）
 # MAGIC ```python
-# MAGIC # 現行の API（dlt モジュール）
-# MAGIC import dlt
-# MAGIC
-# MAGIC @dlt.table
-# MAGIC @dlt.expect("valid_price", "close > 0")                  # 警告のみ（行は通過）
-# MAGIC @dlt.expect_or_drop("valid_date", "date IS NOT NULL")     # 違反行を除外
-# MAGIC @dlt.expect_or_fail("valid_ticker", "ticker IS NOT NULL") # 違反でパイプライン停止
-# MAGIC def silver_stocks():
-# MAGIC     return dlt.read_stream("bronze_stocks")
+# MAGIC @dp.expect("valid_price", "close > 0")           # 警告のみ（行は通過）
+# MAGIC @dp.expect_or_drop("valid_date", "date IS NOT NULL")  # 違反行を除外
+# MAGIC @dp.expect_or_fail("valid_ticker", "ticker IS NOT NULL")  # 違反でパイプライン停止
 # MAGIC ```
-# MAGIC
-# MAGIC > **参考**: 新しい Declarative Pipelines API (`import databricks.declarative_pipelines as dp`) も
-# MAGIC > 提供されています。将来的にはこちらが推奨になる見込みです。
-# MAGIC > 詳細: https://docs.databricks.com/aws/en/ldp/expectations
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 2. Declarative Pipelines 定義の紹介
+# MAGIC ## 2. SDP パイプライン定義の紹介
 # MAGIC
-# MAGIC `lakeflow/dlt_pipeline.py` に完全なパイプライン定義があります。
+# MAGIC `lakeflow/dp_pipeline.py` に完全な DLT パイプライン定義があります。
 # MAGIC このパイプラインは以下のテーブルを生成します：
 # MAGIC
 # MAGIC ```
@@ -87,41 +69,19 @@
 # MAGIC validated_stocks (Gold)
 # MAGIC ```
 # MAGIC
-# MAGIC ### UI操作ポイント: パイプラインの作成
-# MAGIC > 1. 左メニュー「ETLパイプライン」→「パイプラインを作成」
-# MAGIC > 2. ソースコードに `lakeflow/dlt_pipeline.py` を指定
-# MAGIC > 3. ターゲットカタログ・スキーマを設定 → Serverless にチェック → 「開始」
-# MAGIC
-# MAGIC ### UI操作ポイント: パイプライン実行結果の見方
-# MAGIC > パイプライン実行後、以下の画面で結果を確認できます：
-# MAGIC >
-# MAGIC > **DAG（データフロー図）**:
-# MAGIC > - Bronze → Silver → Gold のテーブル間の依存関係がグラフで表示されます
-# MAGIC > - 各テーブルノードをクリックすると詳細（行数、スキーマ）が確認できます
-# MAGIC > - テーブルノードの色で状態がわかります（緑=成功、赤=失敗）
-# MAGIC >
-# MAGIC > **データ品質メトリクス**:
-# MAGIC > - Silver テーブルのノードをクリック → 「Data quality」タブ
-# MAGIC > - 各 Expectation の **合格率** がパーセンテージで表示されます
-# MAGIC > - 例: `positive_close: 100% passed` → close > 0 のルールに全行合格
-# MAGIC > - `expect_or_drop` のルールでは、違反行が何行ドロップされたかも表示
-# MAGIC >
-# MAGIC > **イベントログ**:
-# MAGIC > - 画面下部にパイプラインの実行ログが時系列で表示されます
-# MAGIC > - エラー・警告がある場合は赤/黄色でハイライトされます
-# MAGIC > - フィルタで ERROR のみに絞り込むこともできます
-# MAGIC >
-# MAGIC > **更新履歴**:
-# MAGIC > - 「更新履歴」タブで過去の実行履歴（成功/失敗、実行時間）を一覧確認
-# MAGIC > - 各更新をクリックするとその時点の DAG とメトリクスが表示されます
+# MAGIC ### UI操作ポイント
+# MAGIC > DLT パイプラインの作成手順:
+# MAGIC > 1. 左メニュー「ジョブとパイプライン」→「ETLパイプライン」→「すべてのファイル」タブを選択
+# MAGIC > 2. `lakeflow/dp_pipeline.py` を指定し、メニューから「パイプラインのソースコードに追加」を選択
+# MAGIC > 3. 右上からターゲットスキーマを設定 → 「開始」
 
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ## 3. バッチでの品質チェック実装
 # MAGIC
-# MAGIC 以下では、DLT の Expectations と同等のロジックをバッチ処理として実装します。
-# MAGIC これにより、DLT を使わない環境でも品質チェックの概念を理解できます。
+# MAGIC 以下では、SDP の Expectations と同等のロジックをバッチ処理として実装します。
+# MAGIC これにより、SDP を使わない環境でも品質チェックの概念を理解できます。
 
 # COMMAND ----------
 
@@ -135,7 +95,7 @@ print(f"取り込み行数: {stocks_df.count()}")
 # MAGIC %md
 # MAGIC ### 基本的な品質チェック（Expectations 相当）
 # MAGIC
-# MAGIC DLT の `@dlt.expect` は、以下のような条件チェックを宣言的に書けます。
+# MAGIC SDP の `@dp.expect` は、以下のような条件チェックを宣言的に書けます。
 # MAGIC ここではバッチ処理で同等のチェックを実装します。
 
 # COMMAND ----------
@@ -162,7 +122,7 @@ for rule_name, rule_expr in quality_rules.items():
 # MAGIC %md
 # MAGIC ### 品質違反行の隔離
 # MAGIC
-# MAGIC DLT では `@dlt.expect_or_drop` で違反行を自動除外できます。
+# MAGIC SDP では `@dp.expect_or_drop` で違反行を自動除外できます。
 # MAGIC ここでは違反行を隔離（quarantine）テーブルに分離します。
 # MAGIC
 # MAGIC **リスク管理の観点**: 隔離データは削除せず保持し、原因調査と監査に活用します。
@@ -207,9 +167,8 @@ if quarantine_df.count() > 0:
 
 from pyspark.sql import Window
 
-# 銘柄ごとに日付順で前日の終値を取得するための Window 定義
+# 日次対数リターンを計算
 window_prev = Window.partitionBy('ticker').orderBy('date')
-# 前日比の対数リターンを計算（対数リターンは加法性がありリスク計算に適する）
 returns_df = (
     clean_df
     .withColumn('prev_close', F.lag('close', 1).over(window_prev))
@@ -217,7 +176,7 @@ returns_df = (
     .withColumn('daily_return', F.log(F.col('close') / F.col('prev_close')))
 )
 
-# 銘柄ごとのリターンの平均・標準偏差を計算（Z-score の基準値）
+# 銘柄ごとの平均・標準偏差を計算
 stats_df = (
     returns_df
     .groupBy('ticker')
@@ -227,7 +186,7 @@ stats_df = (
     )
 )
 
-# Z-score = (実績 - 平均) / 標準偏差。|Z| > 3 なら統計的に異常（約0.3%の確率）
+# Z-score を計算
 anomaly_df = (
     returns_df
     .join(stats_df, 'ticker')
@@ -296,9 +255,8 @@ plt.show()
 
 # COMMAND ----------
 
-# 過去3営業日分の終値をリストとして収集する Window（固着検出用）
+# 価格固着の検出（3日連続で同じ終値）
 window_3d = Window.partitionBy('ticker').orderBy('date').rowsBetween(-2, 0)
-# 3日分の終値が全て同じ = 価格固着（データフィードの異常を示唆）
 stale_df = (
     clean_df
     .withColumn('close_list', F.collect_list('close').over(window_3d))
