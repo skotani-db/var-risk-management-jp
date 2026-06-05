@@ -19,15 +19,16 @@
 
 # COMMAND ----------
 
-# DBTITLE 1,Cell 2
+# DBTITLE 1,設定
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 
-# Volume パス（パイプライン設定の pipeline.catalog / pipeline.schema / pipeline.volume で上書き可能）
-# prefix 使用時は pipeline.volume に 'taro_raw_data' のように設定してください
+# ハンズオン時は個人名等を設定（例: 'taro_'）名前衝突を防止します
+PREFIX = ""
+
 catalog = spark.conf.get("pipeline.catalog", "shotkotani_demo_ws")
 schema = spark.conf.get("pipeline.schema", "var_risk_demo")
-volume = spark.conf.get("pipeline.volume", "raw_data")
+volume = PREFIX + "raw_data"
 VOLUME_PATH = f"/Volumes/{catalog}/{schema}/{volume}"
 
 # COMMAND ----------
@@ -39,7 +40,7 @@ VOLUME_PATH = f"/Volumes/{catalog}/{schema}/{volume}"
 
 # DBTITLE 1,Cell 4
 @dp.table(
-    name="bronze_stocks",
+    name=f"{PREFIX}bronze_stocks",
     comment="株式市場の生データ（Auto Loaderで取り込み）"
 )
 def bronze_stocks():
@@ -65,7 +66,7 @@ def bronze_stocks():
 
 # DBTITLE 1,Cell 6
 @dp.table(
-    name="silver_stocks",
+    name=f"{PREFIX}silver_stocks",
     comment="品質チェック済みの株式データ"
 )
 @dp.expect("valid_ticker", "ticker IS NOT NULL")
@@ -74,7 +75,7 @@ def bronze_stocks():
 @dp.expect_or_drop("positive_volume", "volume > 0")
 def silver_stocks():
     return (
-        spark.readStream.table("bronze_stocks")
+        spark.readStream.table(f"{PREFIX}bronze_stocks")
         .withColumns({
             "close": F.col("close").cast("double"),
             "open": F.col("open").cast("double"),
@@ -93,7 +94,7 @@ def silver_stocks():
 
 # DBTITLE 1,Cell 8
 @dp.materialized_view(
-    name="gold_stocks_with_returns",
+    name=f"{PREFIX}gold_stocks_with_returns",
     comment="日次リターンと異常値フラグを含む株式データ"
 )
 @dp.expect_or_drop("valid_return", "ABS(daily_return) < 0.5")
@@ -104,7 +105,7 @@ def gold_stocks_with_returns():
     window_prev = Window.partitionBy("ticker").orderBy("date")
 
     return (
-        spark.read.table("silver_stocks")
+        spark.read.table(f"{PREFIX}silver_stocks")
         .withColumn("prev_close", F.lag("close", 1).over(window_prev))
         .filter(F.col("prev_close").isNotNull())
         .withColumn("daily_return", F.log(F.col("close") / F.col("prev_close")))
