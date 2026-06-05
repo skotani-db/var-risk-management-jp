@@ -47,93 +47,94 @@
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- VaR結果を格納するビュー（ノートブック08の結果をSQLで再現）
-# MAGIC CREATE OR REPLACE VIEW v_daily_risk_summary AS
-# MAGIC SELECT
-# MAGIC   s.date,
-# MAGIC   s.ticker,
-# MAGIC   s.close,
-# MAGIC   p.country,
-# MAGIC   p.industry,
-# MAGIC   p.company,
-# MAGIC   p.weight,
-# MAGIC   -- 前日比リターン
-# MAGIC   LN(s.close / LAG(s.close) OVER (PARTITION BY s.ticker ORDER BY s.date)) AS daily_return
-# MAGIC FROM market_data s
-# MAGIC JOIN (SELECT * FROM VALUES
-# MAGIC   ('BCH', 'CHILE', 'Banks', 'Banco de Chile', 0.0370370370),
-# MAGIC   ('BSAC', 'CHILE', 'Banks', 'Banco Santander-Chile', 0.0370370370),
-# MAGIC   ('CCU', 'CHILE', 'Beverages', 'Compania Cervecerias Unidas S.A.', 0.0370370370),
-# MAGIC   ('ITCB', 'CHILE', 'Banks', 'Itau CorpBanca', 0.0370370370),
-# MAGIC   ('ENIC', 'CHILE', 'Electricity', 'Enersis Chile SA', 0.0370370370),
-# MAGIC   ('SQM', 'CHILE', 'Chemicals', 'SQM-Sociedad Quimica y Minera de Chile, S.A.', 0.0370370370),
-# MAGIC   ('CIB', 'COLOMBIA', 'Banks', 'BanColombia S.A.', 0.0370370370),
-# MAGIC   ('EC', 'COLOMBIA', 'Oil & Gas Producers', 'Ecopetrol S.A.', 0.0370370370),
-# MAGIC   ('AVAL', 'COLOMBIA', 'Financial Services', 'Grupo Aval Acciones y Valores S.A', 0.0370370370),
-# MAGIC   ('AMX', 'MEXICO', 'Mobile Telecommunications', 'America Movil', 0.0370370370),
-# MAGIC   ('AMOV', 'MEXICO', 'Mobile Telecommunications', 'America Movil Class A', 0.0370370370),
-# MAGIC   ('CX', 'MEXICO', 'Construction & Materials', 'CEMEX S.A.B. de C.V.', 0.0370370370),
-# MAGIC   ('KOF', 'MEXICO', 'Beverages', 'Coca-Cola FEMSA', 0.0370370370),
-# MAGIC   ('VLRS', 'MEXICO', 'Travel & Leisure', 'Volaris', 0.0370370370),
-# MAGIC   ('FMX', 'MEXICO', 'Beverages', 'FEMSA', 0.0370370370),
-# MAGIC   ('PAC', 'MEXICO', 'Industrial Transportation', 'Grupo Aeroportuario del Pacifico', 0.0370370370),
-# MAGIC   ('ASR', 'MEXICO', 'Industrial Transportation', 'Grupo Aeroportuario del Sureste', 0.0370370370),
-# MAGIC   ('BSMX', 'MEXICO', 'Banks', 'Grupo Financiero Santander Mexico', 0.0370370370),
-# MAGIC   ('SIM', 'MEXICO', 'Industrial Metals & Mining', 'Grupo Simec', 0.0370370370),
-# MAGIC   ('TV', 'MEXICO', 'Media', 'Grupo Televisa', 0.0370370370),
-# MAGIC   ('IBA', 'MEXICO', 'Food Producers', 'Industrias Bachoco', 0.0370370370),
-# MAGIC   ('BLX', 'PANAMA', 'Banks', 'Banco Latinoamericano de Comercio Exterior', 0.0370370370),
-# MAGIC   ('CPA', 'PANAMA', 'Travel & Leisure', 'Copa Holdings', 0.0370370370),
-# MAGIC   ('CPAC', 'PERU', 'Construction & Materials', 'Cementos Pacasmayo', 0.0370370370),
-# MAGIC   ('SCCO', 'PERU', 'Industrial Metals & Mining', 'Southern Copper', 0.0370370370),
-# MAGIC   ('FSM', 'PERU', 'Mining', 'Fortuna Silver Mines', 0.0370370370),
-# MAGIC   ('BAP', 'PERU', 'Banks', 'Credicorp Ltd.', 0.0370370370)
-# MAGIC   AS p(ticker, country, industry, company, weight)
-# MAGIC ) p ON s.ticker = p.ticker
-# MAGIC WHERE s.close IS NOT NULL
+# VaR結果を格納するビュー（ノートブック08の結果をSQLで再現）
+_ = sql(f"""
+CREATE OR REPLACE VIEW {vw['daily_risk_summary']} AS
+SELECT
+  s.date,
+  s.ticker,
+  s.close,
+  p.country,
+  p.industry,
+  p.company,
+  p.weight,
+  -- 前日比リターン
+  LN(s.close / LAG(s.close) OVER (PARTITION BY s.ticker ORDER BY s.date)) AS daily_return
+FROM {tbl['stocks']} s
+JOIN (SELECT * FROM VALUES
+  ('BCH', 'CHILE', 'Banks', 'Banco de Chile', 0.0370370370),
+  ('BSAC', 'CHILE', 'Banks', 'Banco Santander-Chile', 0.0370370370),
+  ('CCU', 'CHILE', 'Beverages', 'Compania Cervecerias Unidas S.A.', 0.0370370370),
+  ('ITCB', 'CHILE', 'Banks', 'Itau CorpBanca', 0.0370370370),
+  ('ENIC', 'CHILE', 'Electricity', 'Enersis Chile SA', 0.0370370370),
+  ('SQM', 'CHILE', 'Chemicals', 'SQM-Sociedad Quimica y Minera de Chile, S.A.', 0.0370370370),
+  ('CIB', 'COLOMBIA', 'Banks', 'BanColombia S.A.', 0.0370370370),
+  ('EC', 'COLOMBIA', 'Oil & Gas Producers', 'Ecopetrol S.A.', 0.0370370370),
+  ('AVAL', 'COLOMBIA', 'Financial Services', 'Grupo Aval Acciones y Valores S.A', 0.0370370370),
+  ('AMX', 'MEXICO', 'Mobile Telecommunications', 'America Movil', 0.0370370370),
+  ('AMOV', 'MEXICO', 'Mobile Telecommunications', 'America Movil Class A', 0.0370370370),
+  ('CX', 'MEXICO', 'Construction & Materials', 'CEMEX S.A.B. de C.V.', 0.0370370370),
+  ('KOF', 'MEXICO', 'Beverages', 'Coca-Cola FEMSA', 0.0370370370),
+  ('VLRS', 'MEXICO', 'Travel & Leisure', 'Volaris', 0.0370370370),
+  ('FMX', 'MEXICO', 'Beverages', 'FEMSA', 0.0370370370),
+  ('PAC', 'MEXICO', 'Industrial Transportation', 'Grupo Aeroportuario del Pacifico', 0.0370370370),
+  ('ASR', 'MEXICO', 'Industrial Transportation', 'Grupo Aeroportuario del Sureste', 0.0370370370),
+  ('BSMX', 'MEXICO', 'Banks', 'Grupo Financiero Santander Mexico', 0.0370370370),
+  ('SIM', 'MEXICO', 'Industrial Metals & Mining', 'Grupo Simec', 0.0370370370),
+  ('TV', 'MEXICO', 'Media', 'Grupo Televisa', 0.0370370370),
+  ('IBA', 'MEXICO', 'Food Producers', 'Industrias Bachoco', 0.0370370370),
+  ('BLX', 'PANAMA', 'Banks', 'Banco Latinoamericano de Comercio Exterior', 0.0370370370),
+  ('CPA', 'PANAMA', 'Travel & Leisure', 'Copa Holdings', 0.0370370370),
+  ('CPAC', 'PERU', 'Construction & Materials', 'Cementos Pacasmayo', 0.0370370370),
+  ('SCCO', 'PERU', 'Industrial Metals & Mining', 'Southern Copper', 0.0370370370),
+  ('FSM', 'PERU', 'Mining', 'Fortuna Silver Mines', 0.0370370370),
+  ('BAP', 'PERU', 'Banks', 'Credicorp Ltd.', 0.0370370370)
+  AS p(ticker, country, industry, company, weight)
+) p ON s.ticker = p.ticker
+WHERE s.close IS NOT NULL
+""")
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- ポートフォリオ全体の日次加重リターン
-# MAGIC CREATE OR REPLACE VIEW v_portfolio_daily_return AS
-# MAGIC SELECT
-# MAGIC   date,
-# MAGIC   SUM(daily_return * weight) AS portfolio_return,
-# MAGIC   COUNT(DISTINCT ticker) AS num_tickers
-# MAGIC FROM v_daily_risk_summary
-# MAGIC WHERE daily_return IS NOT NULL
-# MAGIC GROUP BY date
-# MAGIC ORDER BY date
+# ポートフォリオ全体の日次加重リターン
+_ = sql(f"""
+CREATE OR REPLACE VIEW {vw['portfolio_daily_return']} AS
+SELECT
+  date,
+  SUM(daily_return * weight) AS portfolio_return,
+  COUNT(DISTINCT ticker) AS num_tickers
+FROM {vw['daily_risk_summary']}
+WHERE daily_return IS NOT NULL
+GROUP BY date
+ORDER BY date
+""")
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- 国別の平均リターンとボラティリティ
-# MAGIC CREATE OR REPLACE VIEW v_country_risk_profile AS
-# MAGIC SELECT
-# MAGIC   country,
-# MAGIC   AVG(daily_return) AS avg_daily_return,
-# MAGIC   STDDEV(daily_return) AS volatility,
-# MAGIC   MIN(daily_return) AS worst_day,
-# MAGIC   MAX(daily_return) AS best_day,
-# MAGIC   COUNT(*) AS observations
-# MAGIC FROM v_daily_risk_summary
-# MAGIC WHERE daily_return IS NOT NULL
-# MAGIC GROUP BY country
+# 国別の平均リターンとボラティリティ
+_ = sql(f"""
+CREATE OR REPLACE VIEW {vw['country_risk_profile']} AS
+SELECT
+  country,
+  AVG(daily_return) AS avg_daily_return,
+  STDDEV(daily_return) AS volatility,
+  MIN(daily_return) AS worst_day,
+  MAX(daily_return) AS best_day,
+  COUNT(*) AS observations
+FROM {vw['daily_risk_summary']}
+WHERE daily_return IS NOT NULL
+GROUP BY country
+""")
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- ダッシュボードで使用するサンプルクエリ: 国別リスクプロファイル
-# MAGIC SELECT * FROM v_country_risk_profile ORDER BY volatility DESC
+# ダッシュボードで使用するサンプルクエリ: 国別リスクプロファイル
+display(sql(f"SELECT * FROM {vw['country_risk_profile']} ORDER BY volatility DESC"))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- ダッシュボードで使用するサンプルクエリ: ポートフォリオリターン推移
-# MAGIC SELECT * FROM v_portfolio_daily_return ORDER BY date
+# ダッシュボードで使用するサンプルクエリ: ポートフォリオリターン推移
+display(sql(f"SELECT * FROM {vw['portfolio_daily_return']} ORDER BY date"))
 
 # COMMAND ----------
 
@@ -218,82 +219,87 @@
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- テーブルコメント: Genie にテーブルの目的と分析文脈を伝える
-# MAGIC COMMENT ON TABLE v_daily_risk_summary IS
-# MAGIC 'ラテンアメリカ27銘柄の均等加重ポートフォリオの日次リスクサマリー。各行は1銘柄の1営業日のデータ。VaR計算、ボラティリティ分析、国別・業種別リスク分解に使用。';
+# テーブルコメント: Genie にテーブルの目的と分析文脈を伝える
+_ = sql(f"""
+COMMENT ON TABLE {vw['daily_risk_summary']} IS
+'ラテンアメリカ27銘柄の均等加重ポートフォリオの日次リスクサマリー。各行は1銘柄の1営業日のデータ。VaR計算、ボラティリティ分析、国別・業種別リスク分解に使用。'
+""")
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- カラムコメント付きでビューを再作成
-# MAGIC -- ビューは ALTER COLUMN COMMENT が使えないため、カラムコメント付き SELECT で再定義
-# MAGIC CREATE OR REPLACE VIEW v_daily_risk_summary
-# MAGIC (
-# MAGIC   date COMMENT '営業日',
-# MAGIC   ticker COMMENT '銘柄コード（Yahoo Finance ティッカー）',
-# MAGIC   close COMMENT '当日の終値（USD）。株価の推移分析に使用。',
-# MAGIC   country COMMENT '銘柄の所属国（CHILE, COLOMBIA, MEXICO, PANAMA, PERU）。国別リスク分解のグループキー。',
-# MAGIC   industry COMMENT '銘柄の業種分類。業種別リスク寄与度の分析に使用。',
-# MAGIC   company COMMENT '企業名',
-# MAGIC   weight COMMENT 'ポートフォリオにおける銘柄のウェイト（均等加重=約3.7%）。エクスポージャー = weight * STDDEV(daily_return) で計算。',
-# MAGIC   daily_return COMMENT '日次対数リターン（LN(当日終値/前日終値)）。ボラティリティ = この値の標準偏差（STDDEV）。テールリスク = この値の1パーセンタイル（PERCENTILE 0.01）。VaR99 = この値の1パーセンタイル。'
-# MAGIC )
-# MAGIC AS
-# MAGIC SELECT
-# MAGIC   s.date,
-# MAGIC   s.ticker,
-# MAGIC   s.close,
-# MAGIC   p.country,
-# MAGIC   p.industry,
-# MAGIC   p.company,
-# MAGIC   p.weight,
-# MAGIC   LN(s.close / LAG(s.close) OVER (PARTITION BY s.ticker ORDER BY s.date)) AS daily_return
-# MAGIC FROM market_data s
-# MAGIC JOIN (SELECT * FROM VALUES
-# MAGIC   ('BCH', 'CHILE', 'Banks', 'Banco de Chile', 0.0370370370),
-# MAGIC   ('BSAC', 'CHILE', 'Banks', 'Banco Santander-Chile', 0.0370370370),
-# MAGIC   ('CCU', 'CHILE', 'Beverages', 'Compania Cervecerias Unidas S.A.', 0.0370370370),
-# MAGIC   ('ITCB', 'CHILE', 'Banks', 'Itau CorpBanca', 0.0370370370),
-# MAGIC   ('ENIC', 'CHILE', 'Electricity', 'Enersis Chile SA', 0.0370370370),
-# MAGIC   ('SQM', 'CHILE', 'Chemicals', 'SQM-Sociedad Quimica y Minera de Chile, S.A.', 0.0370370370),
-# MAGIC   ('CIB', 'COLOMBIA', 'Banks', 'BanColombia S.A.', 0.0370370370),
-# MAGIC   ('EC', 'COLOMBIA', 'Oil & Gas Producers', 'Ecopetrol S.A.', 0.0370370370),
-# MAGIC   ('AVAL', 'COLOMBIA', 'Financial Services', 'Grupo Aval Acciones y Valores S.A', 0.0370370370),
-# MAGIC   ('AMX', 'MEXICO', 'Mobile Telecommunications', 'America Movil', 0.0370370370),
-# MAGIC   ('AMOV', 'MEXICO', 'Mobile Telecommunications', 'America Movil Class A', 0.0370370370),
-# MAGIC   ('CX', 'MEXICO', 'Construction & Materials', 'CEMEX S.A.B. de C.V.', 0.0370370370),
-# MAGIC   ('KOF', 'MEXICO', 'Beverages', 'Coca-Cola FEMSA', 0.0370370370),
-# MAGIC   ('VLRS', 'MEXICO', 'Travel & Leisure', 'Volaris', 0.0370370370),
-# MAGIC   ('FMX', 'MEXICO', 'Beverages', 'FEMSA', 0.0370370370),
-# MAGIC   ('PAC', 'MEXICO', 'Industrial Transportation', 'Grupo Aeroportuario del Pacifico', 0.0370370370),
-# MAGIC   ('ASR', 'MEXICO', 'Industrial Transportation', 'Grupo Aeroportuario del Sureste', 0.0370370370),
-# MAGIC   ('BSMX', 'MEXICO', 'Banks', 'Grupo Financiero Santander Mexico', 0.0370370370),
-# MAGIC   ('SIM', 'MEXICO', 'Industrial Metals & Mining', 'Grupo Simec', 0.0370370370),
-# MAGIC   ('TV', 'MEXICO', 'Media', 'Grupo Televisa', 0.0370370370),
-# MAGIC   ('IBA', 'MEXICO', 'Food Producers', 'Industrias Bachoco', 0.0370370370),
-# MAGIC   ('BLX', 'PANAMA', 'Banks', 'Banco Latinoamericano de Comercio Exterior', 0.0370370370),
-# MAGIC   ('CPA', 'PANAMA', 'Travel & Leisure', 'Copa Holdings', 0.0370370370),
-# MAGIC   ('CPAC', 'PERU', 'Construction & Materials', 'Cementos Pacasmayo', 0.0370370370),
-# MAGIC   ('SCCO', 'PERU', 'Industrial Metals & Mining', 'Southern Copper', 0.0370370370),
-# MAGIC   ('FSM', 'PERU', 'Mining', 'Fortuna Silver Mines', 0.0370370370),
-# MAGIC   ('BAP', 'PERU', 'Banks', 'Credicorp Ltd.', 0.0370370370)
-# MAGIC   AS p(ticker, country, industry, company, weight)
-# MAGIC ) p ON s.ticker = p.ticker
-# MAGIC WHERE s.close IS NOT NULL
+# カラムコメント付きでビューを再作成
+# ビューは ALTER COLUMN COMMENT が使えないため、カラムコメント付き SELECT で再定義
+_ = sql(f"""
+CREATE OR REPLACE VIEW {vw['daily_risk_summary']}
+(
+  date COMMENT '営業日',
+  ticker COMMENT '銘柄コード（Yahoo Finance ティッカー）',
+  close COMMENT '当日の終値（USD）。株価の推移分析に使用。',
+  country COMMENT '銘柄の所属国（CHILE, COLOMBIA, MEXICO, PANAMA, PERU）。国別リスク分解のグループキー。',
+  industry COMMENT '銘柄の業種分類。業種別リスク寄与度の分析に使用。',
+  company COMMENT '企業名',
+  weight COMMENT 'ポートフォリオにおける銘柄のウェイト（均等加重=約3.7%）。エクスポージャー = weight * STDDEV(daily_return) で計算。',
+  daily_return COMMENT '日次対数リターン（LN(当日終値/前日終値)）。ボラティリティ = この値の標準偏差（STDDEV）。テールリスク = この値の1パーセンタイル（PERCENTILE 0.01）。VaR99 = この値の1パーセンタイル。'
+)
+AS
+SELECT
+  s.date,
+  s.ticker,
+  s.close,
+  p.country,
+  p.industry,
+  p.company,
+  p.weight,
+  LN(s.close / LAG(s.close) OVER (PARTITION BY s.ticker ORDER BY s.date)) AS daily_return
+FROM {tbl['stocks']} s
+JOIN (SELECT * FROM VALUES
+  ('BCH', 'CHILE', 'Banks', 'Banco de Chile', 0.0370370370),
+  ('BSAC', 'CHILE', 'Banks', 'Banco Santander-Chile', 0.0370370370),
+  ('CCU', 'CHILE', 'Beverages', 'Compania Cervecerias Unidas S.A.', 0.0370370370),
+  ('ITCB', 'CHILE', 'Banks', 'Itau CorpBanca', 0.0370370370),
+  ('ENIC', 'CHILE', 'Electricity', 'Enersis Chile SA', 0.0370370370),
+  ('SQM', 'CHILE', 'Chemicals', 'SQM-Sociedad Quimica y Minera de Chile, S.A.', 0.0370370370),
+  ('CIB', 'COLOMBIA', 'Banks', 'BanColombia S.A.', 0.0370370370),
+  ('EC', 'COLOMBIA', 'Oil & Gas Producers', 'Ecopetrol S.A.', 0.0370370370),
+  ('AVAL', 'COLOMBIA', 'Financial Services', 'Grupo Aval Acciones y Valores S.A', 0.0370370370),
+  ('AMX', 'MEXICO', 'Mobile Telecommunications', 'America Movil', 0.0370370370),
+  ('AMOV', 'MEXICO', 'Mobile Telecommunications', 'America Movil Class A', 0.0370370370),
+  ('CX', 'MEXICO', 'Construction & Materials', 'CEMEX S.A.B. de C.V.', 0.0370370370),
+  ('KOF', 'MEXICO', 'Beverages', 'Coca-Cola FEMSA', 0.0370370370),
+  ('VLRS', 'MEXICO', 'Travel & Leisure', 'Volaris', 0.0370370370),
+  ('FMX', 'MEXICO', 'Beverages', 'FEMSA', 0.0370370370),
+  ('PAC', 'MEXICO', 'Industrial Transportation', 'Grupo Aeroportuario del Pacifico', 0.0370370370),
+  ('ASR', 'MEXICO', 'Industrial Transportation', 'Grupo Aeroportuario del Sureste', 0.0370370370),
+  ('BSMX', 'MEXICO', 'Banks', 'Grupo Financiero Santander Mexico', 0.0370370370),
+  ('SIM', 'MEXICO', 'Industrial Metals & Mining', 'Grupo Simec', 0.0370370370),
+  ('TV', 'MEXICO', 'Media', 'Grupo Televisa', 0.0370370370),
+  ('IBA', 'MEXICO', 'Food Producers', 'Industrias Bachoco', 0.0370370370),
+  ('BLX', 'PANAMA', 'Banks', 'Banco Latinoamericano de Comercio Exterior', 0.0370370370),
+  ('CPA', 'PANAMA', 'Travel & Leisure', 'Copa Holdings', 0.0370370370),
+  ('CPAC', 'PERU', 'Construction & Materials', 'Cementos Pacasmayo', 0.0370370370),
+  ('SCCO', 'PERU', 'Industrial Metals & Mining', 'Southern Copper', 0.0370370370),
+  ('FSM', 'PERU', 'Mining', 'Fortuna Silver Mines', 0.0370370370),
+  ('BAP', 'PERU', 'Banks', 'Credicorp Ltd.', 0.0370370370)
+  AS p(ticker, country, industry, company, weight)
+) p ON s.ticker = p.ticker
+WHERE s.close IS NOT NULL
+""")
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- ポートフォリオビューにもコメントを追加
-# MAGIC COMMENT ON TABLE v_portfolio_daily_return IS
-# MAGIC 'ポートフォリオ全体の日次加重リターン。portfolio_return = 各銘柄の(daily_return * weight)の合計。ポートフォリオレベルのVaR、ボラティリティ計算に使用。';
+# ポートフォリオビューにもコメントを追加
+_ = sql(f"""
+COMMENT ON TABLE {vw['portfolio_daily_return']} IS
+'ポートフォリオ全体の日次加重リターン。portfolio_return = 各銘柄の(daily_return * weight)の合計。ポートフォリオレベルのVaR、ボラティリティ計算に使用。'
+""")
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC COMMENT ON TABLE v_country_risk_profile IS
-# MAGIC '国別のリスクプロファイル集計。volatility = 日次リターンの標準偏差、worst_day = 最大損失日のリターン。';
+# 国別リスクプロファイルビューにもコメントを追加
+_ = sql(f"""
+COMMENT ON TABLE {vw['country_risk_profile']} IS
+'国別のリスクプロファイル集計。volatility = 日次リターンの標準偏差、worst_day = 最大損失日のリターン。'
+""")
 
 # COMMAND ----------
 
@@ -382,28 +388,30 @@
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- KPI: ポートフォリオの主要リスク指標
-# MAGIC SELECT
-# MAGIC   ROUND(AVG(portfolio_return) * 252, 4) AS annualized_return,
-# MAGIC   ROUND(STDDEV(portfolio_return) * SQRT(252), 4) AS annualized_volatility,
-# MAGIC   ROUND(MIN(portfolio_return), 4) AS worst_daily_loss,
-# MAGIC   ROUND(PERCENTILE(portfolio_return, 0.01), 4) AS var_99_historical
-# MAGIC FROM v_portfolio_daily_return
+# KPI: ポートフォリオの主要リスク指標
+display(sql(f"""
+SELECT
+  ROUND(AVG(portfolio_return) * 252, 4) AS annualized_return,
+  ROUND(STDDEV(portfolio_return) * SQRT(252), 4) AS annualized_volatility,
+  ROUND(MIN(portfolio_return), 4) AS worst_daily_loss,
+  ROUND(PERCENTILE(portfolio_return, 0.01), 4) AS var_99_historical
+FROM {vw['portfolio_daily_return']}
+"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- 月次リスクサマリー（経営報告用）
-# MAGIC SELECT
-# MAGIC   DATE_TRUNC('month', date) AS month,
-# MAGIC   ROUND(AVG(portfolio_return), 6) AS avg_daily_return,
-# MAGIC   ROUND(STDDEV(portfolio_return), 6) AS daily_volatility,
-# MAGIC   ROUND(MIN(portfolio_return), 6) AS worst_day,
-# MAGIC   COUNT(*) AS trading_days
-# MAGIC FROM v_portfolio_daily_return
-# MAGIC GROUP BY DATE_TRUNC('month', date)
-# MAGIC ORDER BY month
+# 月次リスクサマリー（経営報告用）
+display(sql(f"""
+SELECT
+  DATE_TRUNC('month', date) AS month,
+  ROUND(AVG(portfolio_return), 6) AS avg_daily_return,
+  ROUND(STDDEV(portfolio_return), 6) AS daily_volatility,
+  ROUND(MIN(portfolio_return), 6) AS worst_day,
+  COUNT(*) AS trading_days
+FROM {vw['portfolio_daily_return']}
+GROUP BY DATE_TRUNC('month', date)
+ORDER BY month
+"""))
 
 # COMMAND ----------
 

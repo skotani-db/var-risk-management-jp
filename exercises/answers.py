@@ -7,6 +7,10 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../config/configure_notebook
+
+# COMMAND ----------
+
 # MAGIC %md
 # MAGIC ## 01: Data Upload & Volume
 # MAGIC
@@ -14,8 +18,7 @@
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT ticker, COUNT(*) as cnt FROM market_data GROUP BY ticker ORDER BY cnt DESC
+display(sql(f"SELECT ticker, COUNT(*) as cnt FROM {tbl['stocks']} GROUP BY ticker ORDER BY cnt DESC"))
 
 # COMMAND ----------
 
@@ -76,20 +79,21 @@
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- メキシコはポートフォリオ内で最も銘柄数が多い（12銘柄）
-# MAGIC -- 業種が多様（テレコム、建設、飲料、航空、銀行等）なため、
-# MAGIC -- リスクが特定業種に集中しにくい = 分散効果が大きい
-# MAGIC --
-# MAGIC -- 一方ペルーは4銘柄で、鉱業のウェイトが高いため
-# MAGIC -- コモディティ価格の影響を受けやすい
-# MAGIC SELECT country, COUNT(DISTINCT ticker) as num_tickers, COUNT(DISTINCT industry) as num_industries
-# MAGIC FROM market_data m
-# MAGIC JOIN (SELECT * FROM VALUES
-# MAGIC   ('AMX', 'MEXICO'), ('AMOV', 'MEXICO'), ('CX', 'MEXICO'), ('KOF', 'MEXICO'),
-# MAGIC   ('VLRS', 'MEXICO'), ('FMX', 'MEXICO'), ('PAC', 'MEXICO'), ('ASR', 'MEXICO'),
-# MAGIC   ('BSMX', 'MEXICO'), ('SIM', 'MEXICO'), ('TV', 'MEXICO'), ('IBA', 'MEXICO'),
-# MAGIC   ('SCCO', 'PERU'), ('FSM', 'PERU'), ('CPAC', 'PERU'), ('BAP', 'PERU')
-# MAGIC   AS p(ticker, country)
-# MAGIC ) p ON m.ticker = p.ticker
-# MAGIC GROUP BY country
+# メキシコはポートフォリオ内で最も銘柄数が多い（12銘柄）
+# 業種が多様（テレコム、建設、飲料、航空、銀行等）なため、
+# リスクが特定業種に集中しにくい = 分散効果が大きい
+#
+# 一方ペルーは4銘柄で、鉱業のウェイトが高いため
+# コモディティ価格の影響を受けやすい
+display(sql(f"""
+SELECT country, COUNT(DISTINCT ticker) as num_tickers, COUNT(DISTINCT industry) as num_industries
+FROM {tbl['stocks']} m
+JOIN (SELECT * FROM VALUES
+  ('AMX', 'MEXICO'), ('AMOV', 'MEXICO'), ('CX', 'MEXICO'), ('KOF', 'MEXICO'),
+  ('VLRS', 'MEXICO'), ('FMX', 'MEXICO'), ('PAC', 'MEXICO'), ('ASR', 'MEXICO'),
+  ('BSMX', 'MEXICO'), ('SIM', 'MEXICO'), ('TV', 'MEXICO'), ('IBA', 'MEXICO'),
+  ('SCCO', 'PERU'), ('FSM', 'PERU'), ('CPAC', 'PERU'), ('BAP', 'PERU')
+  AS p(ticker, country)
+) p ON m.ticker = p.ticker
+GROUP BY country
+"""))

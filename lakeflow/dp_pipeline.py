@@ -24,8 +24,9 @@ from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 
 # Volume パス（パイプライン設定の pipeline.catalog / pipeline.schema / pipeline.volume で上書き可能）
-catalog = spark.conf.get("pipeline.catalog", "takuyaa_azure_w2")
-schema = spark.conf.get("pipeline.schema", "workshop_var")
+# prefix 使用時は pipeline.volume に 'taro_raw_data' のように設定してください
+catalog = spark.conf.get("pipeline.catalog", "shotkotani_demo_ws")
+schema = spark.conf.get("pipeline.schema", "var_risk_demo")
 volume = spark.conf.get("pipeline.volume", "raw_data")
 VOLUME_PATH = f"/Volumes/{catalog}/{schema}/{volume}"
 

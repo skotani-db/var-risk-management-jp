@@ -44,6 +44,7 @@ plt.rcParams['axes.unicode_minus'] = False  # マイナス記号の文字化け�
 # Serverless v5 では PyYAML が未インストールのため、Python dict で設定を定義
 # 変更したい場合はここを編集してください
 config = {
+  'prefix': '',  # ← ハンズオン時は個人名等を設定（例: 'taro_'）名前衝突を防止します
   'yfinance': {
     'mindate': '2024-05-01',
     'maxdate': '2026-05-01',
@@ -68,6 +69,11 @@ config = {
       'stocks_quarantine': 'market_data_quarantine',
       'indicators_quarantine': 'market_indicators_quarantine',
     },
+    'views': {
+      'daily_risk_summary': 'v_daily_risk_summary',
+      'portfolio_daily_return': 'v_portfolio_daily_return',
+      'country_risk_profile': 'v_country_risk_profile',
+    },
   },
   'monte-carlo': {
     'executors': 20,
@@ -78,26 +84,48 @@ config = {
 
 # COMMAND ----------
 
-# Unity Catalog: カタログとスキーマを作成
-_ = sql("CREATE SCHEMA IF NOT EXISTS {}.{}".format(
-  config['database']['catalog'],
-  config['database']['schema']
-))
+# prefix を適用（テーブル名・Volume名・モデル名・ビュー名の衝突防止）
+_prefix = config.get('prefix', '')
+if _prefix:
+    for _key in ['stocks', 'indicators', 'volatility', 'mc_market', 'mc_trials',
+                 'stocks_quarantine', 'indicators_quarantine']:
+        config['database']['tables'][_key] = _prefix + config['database']['tables'][_key]
+    config['database']['volume'] = _prefix + config['database']['volume']
+    config['database']['volume_adjustments'] = _prefix + config['database']['volume_adjustments']
+    config['model']['name'] = _prefix + config['model']['name']
+    for _key in config['database']['views']:
+        config['database']['views'][_key] = _prefix + config['database']['views'][_key]
+    print(f"prefix '{_prefix}' を適用しました")
+
+# ショートハンド（各ノートブックで利用）
+tbl = config['database']['tables']
+vw = config['database']['views']
+
+# COMMAND ----------
+
+# Unity Catalog: スキーマを作成（権限がない場合はスキップ）
+try:
+    _ = sql("CREATE SCHEMA IF NOT EXISTS {}.{}".format(
+      config['database']['catalog'],
+      config['database']['schema']
+    ))
+except Exception as e:
+    print(f"スキーマ作成をスキップ（既存スキーマを使用します）: {str(e)[:200]}")
 
 # COMMAND ----------
 
 # Unity Catalog: Volume を作成（CSVアップロード先）
 _ = sql("CREATE VOLUME IF NOT EXISTS {}.{}.{}".format(
-  config['database']['catalog'],
-  config['database']['schema'],
-  config['database']['volume']
+    config['database']['catalog'],
+    config['database']['schema'],
+    config['database']['volume']
 ))
 
 # Unity Catalog: 調整用 Volume を作成（Excelアップロード先、リネージで区別するため分離）
 _ = sql("CREATE VOLUME IF NOT EXISTS {}.{}.{}".format(
-  config['database']['catalog'],
-  config['database']['schema'],
-  config['database']['volume_adjustments']
+    config['database']['catalog'],
+    config['database']['schema'],
+    config['database']['volume_adjustments']
 ))
 
 # COMMAND ----------
@@ -128,8 +156,20 @@ mlflow.set_experiment('/Users/{}/value_at_risk'.format(username))
 # COMMAND ----------
 
 def teardown():
-  """デモ環境のクリーンアップ（全テーブル・スキーマを削除）"""
-  _ = sql("DROP SCHEMA IF EXISTS {}.{} CASCADE".format(
-    config['database']['catalog'],
-    config['database']['schema']
-  ))
+  """デモ環境のクリーンアップ"""
+  _p = config.get('prefix', '')
+  if _p:
+    # prefix 付きオブジェクトを個別に削除（共有スキーマを壊さない）
+    for _v in config['database']['views'].values():
+        sql(f"DROP VIEW IF EXISTS {_v}")
+    for _k, _v in config['database']['tables'].items():
+        if not _k.endswith('_checkpoint'):
+            sql(f"DROP TABLE IF EXISTS {_v}")
+    sql(f"DROP VOLUME IF EXISTS {config['database']['volume']}")
+    sql(f"DROP VOLUME IF EXISTS {config['database']['volume_adjustments']}")
+    print(f"prefix '{_p}' のオブジェクトを削除しました")
+  else:
+    _ = sql("DROP SCHEMA IF EXISTS {}.{} CASCADE".format(
+      config['database']['catalog'],
+      config['database']['schema']
+    ))

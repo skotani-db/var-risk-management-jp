@@ -71,14 +71,12 @@
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SHOW TABLES
+display(sql("SHOW TABLES"))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- テーブルの詳細情報（作成日時、場所、統計等）
-# MAGIC DESCRIBE EXTENDED market_data
+# -- テーブルの詳細情報（作成日時、場所、統計等）
+display(sql(f"DESCRIBE EXTENDED {tbl['stocks']}"))
 
 # COMMAND ----------
 
@@ -104,8 +102,7 @@
 
 # COMMAND ----------
 
-# DBTITLE 1,権限確認
-# 現在の権限を確認（スキーマ名は config/configure_notebook.py の値に合わせてください）
+# -- 現在の権限を確認
 display(sql(f"SHOW GRANTS ON SCHEMA {config['database']['schema']}"))
 
 # COMMAND ----------
@@ -157,17 +154,13 @@ display(sql(f"SHOW GRANTS ON SCHEMA {config['database']['schema']}"))
 
 # COMMAND ----------
 
-# DBTITLE 1,タグ設定 market_data
-# MAGIC %sql
-# MAGIC -- テーブルにタグを設定
-# MAGIC -- Tag Policy でエラーになる場合は、上記の手順で UI から設定してください
-# MAGIC ALTER TABLE market_data SET TAGS ('domain' = 'finance', 'data_classification' = 'pii');
+# -- テーブルにタグを設定
+# -- Tag Policy でエラーになる場合は、上記の手順で UI から設定してください
+_ = sql(f"ALTER TABLE {tbl['stocks']} SET TAGS ('domain' = 'finance', 'data_classification' = 'pii')")
 
 # COMMAND ----------
 
-# DBTITLE 1,タグ設定 market_indicators
-# MAGIC %sql
-# MAGIC ALTER TABLE market_indicators SET TAGS ('domain' = 'finance', 'data_classification' = 'pii');
+_ = sql(f"ALTER TABLE {tbl['indicators']} SET TAGS ('domain' = 'finance', 'data_classification' = 'pii')")
 
 # COMMAND ----------
 
@@ -177,10 +170,9 @@ display(sql(f"SHOW GRANTS ON SCHEMA {config['database']['schema']}"))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- テーブルにコメントを追加（データカタログでの説明）
-# MAGIC COMMENT ON TABLE market_data IS 'ラテンアメリカ27銘柄のOHLCVデータ。VaR計算のソースデータ。日次更新。';
-# MAGIC COMMENT ON TABLE market_indicators IS '主要市場指標（S&P500, NYSE, 原油, 国債, ダウ）。VaRモデルの特徴量として使用。';
+# -- テーブルにコメントを追加（データカタログでの説明）
+_ = sql(f"COMMENT ON TABLE {tbl['stocks']} IS 'ラテンアメリカ27銘柄のOHLCVデータ。VaR計算のソースデータ。日次更新。'")
+_ = sql(f"COMMENT ON TABLE {tbl['indicators']} IS '主要市場指標（S&P500, NYSE, 原油, 国債, ダウ）。VaRモデルの特徴量として使用。'")
 
 # COMMAND ----------
 
@@ -196,9 +188,8 @@ display(sql(f"SHOW GRANTS ON SCHEMA {config['database']['schema']}"))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- 変更前のバージョンを確認
-# MAGIC DESCRIBE HISTORY market_data LIMIT 5
+# -- 変更前のバージョンを確認
+display(sql(f"DESCRIBE HISTORY {tbl['stocks']} LIMIT 5"))
 
 # COMMAND ----------
 
@@ -209,57 +200,49 @@ display(sql(f"SHOW GRANTS ON SCHEMA {config['database']['schema']}"))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- Step 1: 更新前の行数を確認
-# MAGIC SELECT '更新前' AS status, COUNT(*) AS row_count FROM market_data
+# -- Step 1: 更新前の行数を確認
+display(sql(f"SELECT '更新前' AS status, COUNT(*) AS row_count FROM {tbl['stocks']}"))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- Step 2: テスト用のダミー行を INSERT（意図的な変更）
-# MAGIC INSERT INTO market_data (ticker, date, open, high, low, close, volume)
-# MAGIC VALUES ('TEST', '2099-01-01', 100.0, 105.0, 95.0, 102.0, 999999.0)
+# -- Step 2: テスト用のダミー行を INSERT（意図的な変更）
+_ = sql(f"""INSERT INTO {tbl['stocks']} (ticker, date, open, high, low, close, volume)
+VALUES ('TEST', '2099-01-01', 100.0, 105.0, 95.0, 102.0, 999999.0)""")
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- Step 3: さらに UPDATE を実行（価格修正シナリオ）
-# MAGIC UPDATE market_data SET close = 999.99 WHERE ticker = 'TEST'
+# -- Step 3: さらに UPDATE を実行（価格修正シナリオ）
+_ = sql(f"UPDATE {tbl['stocks']} SET close = 999.99 WHERE ticker = 'TEST'")
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- Step 4: 変更後のバージョン履歴を確認（3つ以上のバージョンが存在するはず）
-# MAGIC DESCRIBE HISTORY market_data LIMIT 5
+# -- Step 4: 変更後のバージョン履歴を確認（3つ以上のバージョンが存在するはず）
+display(sql(f"DESCRIBE HISTORY {tbl['stocks']} LIMIT 5"))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- Step 5: 最新バージョンではテスト行が更新済み
-# MAGIC SELECT ticker, date, close FROM market_data WHERE ticker = 'TEST'
+# -- Step 5: 最新バージョンではテスト行が更新済み
+display(sql(f"SELECT ticker, date, close FROM {tbl['stocks']} WHERE ticker = 'TEST'"))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- Step 6: タイムトラベルで INSERT 直後のバージョン（UPDATE 前）にアクセス
-# MAGIC -- close = 102.0（UPDATE 前の値）であることを確認
-# MAGIC SELECT ticker, date, close
-# MAGIC FROM market_data VERSION AS OF 1
-# MAGIC WHERE ticker = 'TEST'
+# -- Step 6: タイムトラベルで INSERT 直後のバージョン（UPDATE 前）にアクセス
+# -- close = 102.0（UPDATE 前の値）であることを確認
+display(sql(f"""SELECT ticker, date, close
+FROM {tbl['stocks']} VERSION AS OF 1
+WHERE ticker = 'TEST'"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- Step 7: 最初のバージョン（INSERT 前）にはテスト行が存在しないことを確認
-# MAGIC SELECT COUNT(*) AS test_rows
-# MAGIC FROM market_data VERSION AS OF 0
-# MAGIC WHERE ticker = 'TEST'
+# -- Step 7: 最初のバージョン（INSERT 前）にはテスト行が存在しないことを確認
+display(sql(f"""SELECT COUNT(*) AS test_rows
+FROM {tbl['stocks']} VERSION AS OF 0
+WHERE ticker = 'TEST'"""))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- クリーンアップ: テスト行を削除
-# MAGIC DELETE FROM market_data WHERE ticker = 'TEST'
+# -- クリーンアップ: テスト行を削除
+_ = sql(f"DELETE FROM {tbl['stocks']} WHERE ticker = 'TEST'")
 
 # COMMAND ----------
 
