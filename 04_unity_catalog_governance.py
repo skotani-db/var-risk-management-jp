@@ -104,9 +104,9 @@
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- 現在の権限を確認（スキーマ名は config/configure_notebook.py の値に合わせてください）
-# MAGIC SHOW GRANTS ON SCHEMA var_risk_demo
+# DBTITLE 1,権限確認
+# 現在の権限を確認（スキーマ名は config/configure_notebook.py の値に合わせてください）
+display(sql(f"SHOW GRANTS ON SCHEMA {config['database']['schema']}"))
 
 # COMMAND ----------
 
@@ -157,6 +157,7 @@
 
 # COMMAND ----------
 
+# DBTITLE 1,タグ設定 market_data
 # MAGIC %sql
 # MAGIC -- テーブルにタグを設定
 # MAGIC -- Tag Policy でエラーになる場合は、上記の手順で UI から設定してください
@@ -164,6 +165,7 @@
 
 # COMMAND ----------
 
+# DBTITLE 1,タグ設定 market_indicators
 # MAGIC %sql
 # MAGIC ALTER TABLE market_indicators SET TAGS ('domain' = 'finance', 'data_classification' = 'pii');
 

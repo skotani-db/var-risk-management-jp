@@ -1,0 +1,93 @@
+resources:
+  jobs:
+    VaR_Risk_Demo_Validation_Run_00_11:
+      name: VaR Risk Demo Validation Run 00-11
+      tasks:
+        - task_key: nb_00
+          notebook_task:
+            notebook_path: /Workspace/Users/takuya.amakawa@databricks.com/var-risk-management-jp/00_introduction
+            source: WORKSPACE
+          environment_key: default
+        - task_key: nb_01
+          depends_on:
+            - task_key: nb_00
+          notebook_task:
+            notebook_path: /Workspace/Users/takuya.amakawa@databricks.com/var-risk-management-jp/01_data_upload_and_volume
+            source: WORKSPACE
+          environment_key: default
+        - task_key: nb_02
+          depends_on:
+            - task_key: nb_01
+          notebook_task:
+            notebook_path: /Workspace/Users/takuya.amakawa@databricks.com/var-risk-management-jp/02_autoloader_ingestion
+            source: WORKSPACE
+          environment_key: default
+        - task_key: nb_03
+          depends_on:
+            - task_key: nb_02
+          notebook_task:
+            notebook_path: /Workspace/Users/takuya.amakawa@databricks.com/var-risk-management-jp/03_lakeflow_data_quality
+            source: WORKSPACE
+          environment_key: default
+        - task_key: nb_04
+          depends_on:
+            - task_key: nb_03
+          notebook_task:
+            notebook_path: /Workspace/Users/takuya.amakawa@databricks.com/var-risk-management-jp/04_unity_catalog_governance
+            source: WORKSPACE
+          environment_key: default
+        - task_key: nb_05
+          depends_on:
+            - task_key: nb_04
+          notebook_task:
+            notebook_path: /Workspace/Users/takuya.amakawa@databricks.com/var-risk-management-jp/05_feature_engineering
+            source: WORKSPACE
+          environment_key: default
+        - task_key: nb_06
+          depends_on:
+            - task_key: nb_05
+          notebook_task:
+            notebook_path: /Workspace/Users/takuya.amakawa@databricks.com/var-risk-management-jp/06_model_training_mlflow
+            source: WORKSPACE
+          environment_key: default
+        - task_key: nb_07
+          depends_on:
+            - task_key: nb_06
+          notebook_task:
+            notebook_path: /Workspace/Users/takuya.amakawa@databricks.com/var-risk-management-jp/07_monte_carlo_simulation
+            source: WORKSPACE
+          environment_key: default
+        - task_key: nb_08
+          depends_on:
+            - task_key: nb_07
+          notebook_task:
+            notebook_path: /Workspace/Users/takuya.amakawa@databricks.com/var-risk-management-jp/08_var_aggregation_compliance
+            source: WORKSPACE
+          environment_key: default
+        - task_key: nb_09
+          depends_on:
+            - task_key: nb_08
+          notebook_task:
+            notebook_path: /Workspace/Users/takuya.amakawa@databricks.com/var-risk-management-jp/09_dashboard_and_genie
+            source: WORKSPACE
+          environment_key: default
+        - task_key: nb_10
+          depends_on:
+            - task_key: nb_09
+          notebook_task:
+            notebook_path: /Workspace/Users/takuya.amakawa@databricks.com/var-risk-management-jp/10_operations_system_tables
+            source: WORKSPACE
+          environment_key: default
+        - task_key: nb_11
+          depends_on:
+            - task_key: nb_10
+          notebook_task:
+            notebook_path: /Workspace/Users/takuya.amakawa@databricks.com/var-risk-management-jp/11_lakeflow_designer_risk_report
+            source: WORKSPACE
+          environment_key: default
+      queue:
+        enabled: true
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: "5"

@@ -85,6 +85,11 @@
 
 # COMMAND ----------
 
+# DBTITLE 1,共通設定読み込み
+# MAGIC %run ./config/configure_notebook
+
+# COMMAND ----------
+
 from pyspark.sql import functions as F
 
 stocks_df = spark.read.table(config['database']['tables']['stocks'])

@@ -1,4 +1,8 @@
 # Databricks notebook source
+# /// script
+# [tool.databricks.environment]
+# environment_version = "5"
+# ///
 # MAGIC %md
 # MAGIC # 01. データアップロードと Unity Catalog Volume
 # MAGIC
@@ -330,7 +334,7 @@ display(spark.read.table(config['database']['tables']['indicators']))
 # DBTITLE 1,銘柄ごとの行数カウント
 # MAGIC %sql
 # MAGIC SELECT ticker, COUNT(*) AS row_count
-# MAGIC FROM shotkotani_demo_ws.var_risk_demo.market_data
+# MAGIC FROM market_data
 # MAGIC GROUP BY ticker
 # MAGIC ORDER BY ticker
 

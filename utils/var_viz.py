@@ -16,7 +16,7 @@ def plot_candlesticks(stock_df):
     )],
     layout=layout
   )
-  fig.show()
+  display(fig)
 
 
 def plot_var(simulations, var):
