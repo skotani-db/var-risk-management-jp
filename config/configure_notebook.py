@@ -44,7 +44,7 @@ plt.rcParams['axes.unicode_minus'] = False  # マイナス記号の文字化け�
 # Serverless v5 では PyYAML が未インストールのため、Python dict で設定を定義
 # 変更したい場合はここを編集してください
 config = {
-  'prefix': '',  # ← ハンズオン時は個人名等を設定（例: 'taro_'）名前衝突を防止します
+  'prefix': 'e2e_',  # ← ハンズオン時は個人名等を設定（例: 'taro_'）名前衝突を防止します
   'yfinance': {
     'mindate': '2024-05-01',
     'maxdate': '2026-05-01',
