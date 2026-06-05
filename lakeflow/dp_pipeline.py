@@ -24,7 +24,7 @@ from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 
 # ハンズオン時は個人名等を設定（例: 'taro_'）名前衝突を防止します
-PREFIX = ""
+PREFIX = "e2e_"
 
 catalog = spark.conf.get("pipeline.catalog", "shotkotani_demo_ws")
 schema = spark.conf.get("pipeline.schema", "var_risk_demo")
